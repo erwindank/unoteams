@@ -7,7 +7,7 @@
 // Firebase, fonts and other sites are left alone.
 // ============================================================
 
-const CACHE = 'camaleon-v1';
+const CACHE = 'unoteams-v1';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));

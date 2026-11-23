@@ -1,31 +1,41 @@
 // ============================================================
-// ¡CAMALEÓN! — NEW LOOK (the 7 ideas of the "UNO Fiesta New Look" mock-up,
-// brought to ¡CAMALEÓN! with its own rainforest colours, 2026-11-23)
+// UNO TEAMS — NEW LOOK (the 7 ideas of the "UNO Fiesta New Look" mock-up, used as
+// UNO TEAMS's own look, 2026-11-23)
 //
 // Loaded BEFORE app.js. app.js asks these helpers for the card faces when they exist:
-//   lookIconHTML(value)          — drawn centre picture (skip, reverse, wild pictures) or ''
+//   lookIconHTML(value)          — drawn centre picture (skip, reverse, team wilds) or ''
 //   lookCornerHTML(value, pos)   — small corner label / picture
-//   lookWildCenterHTML(value)    — four-colour leaf + "+4" / "+2" or a picture
-// Later steps add the table ring, seats, title screen and movement below.
+//   lookWildCenterHTML(value)    — four-colour diamond + a picture
+//   lookPassHTML()               — the 🔁 passing symbol (arrow over a card)
+// Then the table ring, seats, title screen and movement below.
 // ============================================================
 
 // ---- 1. Card pictures ----------------------------------------------------
 // Every picture is drawn in the card's colour (currentColor) with a dark outline,
-// so the same drawing works on all four colours and on the white leaf.
-const LOOK_OUT = '#0c1f19';
+// so the same drawing works on all four colours and on the white diamond.
+const LOOK_OUT = '#1b0d14';
 const _S = `stroke="${LOOK_OUT}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"`;
 const LOOK_ICONS = {
   // ⊘ Salto: a ring with a bar through it
   skip: `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="34" fill="none" stroke="${LOOK_OUT}" stroke-width="22"/><circle cx="50" cy="50" r="34" fill="none" stroke="currentColor" stroke-width="12"/><path d="M27 73 L73 27" stroke="${LOOK_OUT}" stroke-width="22" stroke-linecap="round"/><path d="M27 73 L73 27" stroke="currentColor" stroke-width="12" stroke-linecap="round"/></svg>`,
   // ⇄ Reversa: two arrows pointing opposite ways
   reverse: `<svg viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-45 50 50)"><path d="M14 28 H56 V14 L84 33 L56 52 V38 H14 Z" fill="currentColor" ${_S}/><path d="M86 62 H44 V48 L16 67 L44 86 V72 H86 Z" fill="currentColor" ${_S}/></g></svg>`,
-  // ⚡ Comodín Voltea Todos: a lightning bolt (every Power Card flips)
-  wildFlip: `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M58 6 L22 56 H46 L38 94 L78 40 H54 Z" fill="#c6f432" ${_S}/></svg>`,
-  // 🎯 Comodín Diana: a target
-  wildTarget2: `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="38" fill="#E0322B" ${_S}/><circle cx="50" cy="50" r="25" fill="#fff" ${_S}/><circle cx="50" cy="50" r="11" fill="#E0322B" ${_S}/></svg>`
+  // 🤝 Juego en Equipo: two team-mates, the turn (a gold arrow) jumping from one to the other
+  teamPlay: `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <path d="M22 40 Q50 6 78 40" fill="none" stroke="${LOOK_OUT}" stroke-width="13" stroke-linecap="round"/>
+    <path d="M22 40 Q50 6 78 40" fill="none" stroke="#ffd54a" stroke-width="6" stroke-linecap="round"/>
+    <path d="M66 36 L82 44 L84 26 Z" fill="#ffd54a" ${_S} stroke-width="4"/>
+    <circle cx="26" cy="56" r="11" fill="#fbf6ef" ${_S}/><path d="M9 92 Q10 70 26 70 Q42 70 43 92 Z" fill="#fbf6ef" ${_S}/>
+    <circle cx="74" cy="56" r="11" fill="#ff4f9a" ${_S}/><path d="M57 92 Q58 70 74 70 Q90 70 91 92 Z" fill="#ff4f9a" ${_S}/></svg>`,
+  // ✌️ Equipo Roba Cuatro: two cards, +2 for a player and +2 for their partner
+  team4: `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <rect x="8" y="22" width="44" height="62" rx="8" fill="#2c6ae0" ${_S} transform="rotate(-12 30 53)"/>
+    <rect x="48" y="16" width="44" height="62" rx="8" fill="#e8343b" ${_S} transform="rotate(10 70 47)"/>
+    <text x="30" y="62" text-anchor="middle" transform="rotate(-12 30 53)" font-family="Lilita One, Arial Black, sans-serif" font-size="25" fill="#fff" stroke="${LOOK_OUT}" stroke-width="4" paint-order="stroke">+2</text>
+    <text x="70" y="56" text-anchor="middle" transform="rotate(10 70 47)" font-family="Lilita One, Arial Black, sans-serif" font-size="25" fill="#fff" stroke="${LOOK_OUT}" stroke-width="4" paint-order="stroke">+2</text></svg>`
 };
-// a wild picture keeps its own colours; skip/reverse take the card's colour
-const LOOK_WILD_PICS = ['wildFlip', 'wildTarget2'];
+// the 🔁 passing symbol: an arrow going up over a card (as on the real cards)
+const LOOK_PASS = `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 L31 14 H24 V20 H16 V14 H9 Z" fill="#fff" stroke="${LOOK_OUT}" stroke-width="2.5" stroke-linejoin="round"/><rect x="11" y="22" width="18" height="15" rx="3" fill="#fff" stroke="${LOOK_OUT}" stroke-width="2.5" transform="rotate(-10 20 29)"/></svg>`;
 
 function lookIconHTML(value) {
   const svg = LOOK_ICONS[value];
@@ -33,18 +43,23 @@ function lookIconHTML(value) {
 }
 
 function lookCornerHTML(value, pos) {
+  // wild: a tiny four-colour square instead of a letter
+  if (value === 'wild') return `<span class="card-label ${pos} has-icon"><span class="corner-quad"></span></span>`;
+  // team wilds: a small label is clearer in the corner than a tiny picture
+  if (value === 'teamPlay') return `<span class="card-label ${pos} corner-team">🤝</span>`;
+  if (value === 'team4') return `<span class="card-label ${pos}">+4</span>`;
   const svg = LOOK_ICONS[value];
   if (svg) return `<span class="card-label ${pos} has-icon">${svg}</span>`;
   return `<span class="card-label ${pos}">${symbolOf(value)}</span>`;
 }
 
 function lookWildCenterHTML(value) {
-  // the leaf keeps its four colours even after a colour was named (the ring shows that)
-  const sub = value === 'wildTarget2' ? `<span class="wild-sub">+2</span>` : '';
-  const inner = LOOK_WILD_PICS.includes(value) ? lookIconHTML(value) + sub
-    : `<span class="card-label center">${symbolOf(value)}</span>`;
-  return inner;
+  // the diamond keeps its four colours even after a colour was picked (the ring shows that)
+  if (value === 'wild') return `<span class="wild-diamond"></span>`;
+  return `<span class="wild-diamond"></span>${lookIconHTML(value)}`;
 }
+
+function lookPassHTML() { return LOOK_PASS; }
 
 // ---- 2. Table: direction ring around the piles ----------------------------
 // Called from renderStatus() in app.js on every render. Keeps one SVG ring inside
@@ -75,22 +90,25 @@ function lookDirectionHTML(direction) {
 
 // ---- 4. Seats: words used on the players around the table -----------------
 addStrings({
-  'seat.turn':  ['SU TURNO', 'THEIR TURN'],
-  'seat.card':  ['{n} carta', '{n} card'],
-  'seat.cards': ['{n} cartas', '{n} cards']
+  'seat.turn':    ['SU TURNO', 'THEIR TURN'],
+  'seat.picking': ['ELIGIENDO', 'PICKING'],
+  'seat.passing': ['PASANDO', 'PASSING'],
+  'seat.card':    ['{n} carta', '{n} card'],
+  'seat.cards':   ['{n} cartas', '{n} cards']
 });
 
 // ---- 5. Title screen ---------------------------------------------------------
 addStrings({ 'land.howLink': ['Cómo jugar', 'How to play'] });
-// four real cards fanned above the name: a flex number, a skip, a wild and a flex reverse
+// four real cards fanned behind the logo: a number with the 🔁 symbol, a Team Play,
+// a Team Draw Four and a skip
 document.addEventListener('DOMContentLoaded', () => {
   const fan = document.querySelector('.title-fan');
   if (!fan || typeof cardHTML !== 'function') return;
   fan.innerHTML = [
-    { c: 'red', c2: 'blue', v: '5', flex: true },
-    { c: 'yellow', v: 'skip' },
-    { c: 'wild', v: 'wildFlip' },
-    { c: 'green', c2: 'yellow', v: 'reverse', flex: true }
+    { c: 'red', v: '5', pass: true },
+    { c: 'wild', v: 'teamPlay' },
+    { c: 'wild', v: 'team4' },
+    { c: 'blue', v: 'skip' }
   ].map(card => cardHTML(card)).join('');
 });
 
@@ -99,22 +117,23 @@ document.addEventListener('DOMContentLoaded', () => {
 const _lookMotion = () => typeof FX === 'undefined' || FX.motion();
 const _lookMid = r => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
 
-// Deal: when a round has just started (only the start line in the log), card backs fly
-// from the deck to each player one round at a time, and my cards flip face up.
+// Deal: when a round has just started (nothing in the log yet but the start), card backs
+// fly from the deck to each player one round at a time, and my cards flip face up.
 function lookDealIn(state) {
   if (!_lookMotion() || document.hidden) return;
   if ((state.log || []).length > 1) return;           // joined a game already under way
-  const deck = document.querySelector('#draw-pile-area .card-back-cham')?.getBoundingClientRect();
+  const deck = document.querySelector('#draw-pile-area .card-back')?.getBoundingClientRect();
   const mine = [...document.querySelectorAll('#player-hand .card[data-index]')];
   if (!deck || !mine.length) return;
   const seats = [...document.querySelectorAll('#opponents-row .opponent')];
   const layer = FX.layer();
+  const back = '<div class="card-back fly-back"><span class="back-uno">UNO</span><span class="back-party">TEAMS</span></div>';
   const STEP = 120;                                     // ms between cards
   mine.forEach(el => { el.style.visibility = 'hidden'; });
   const fly = (to, delay, done) => {
     const el = document.createElement('div');
     el.className = 'fx-fly lk-deal';
-    el.innerHTML = backHTML();
+    el.innerHTML = back;
     layer.appendChild(el);
     const a = _lookMid(deck), b = _lookMid(to);
     const s = Math.max(.3, Math.min(1.2, to.height / 90));
@@ -125,7 +144,7 @@ function lookDealIn(state) {
   };
   const rounds = mine.length;
   for (let i = 0; i < rounds; i++) {
-    // opponents first in each round, then me — like dealing round the table
+    // the other players first in each round, then me — like dealing round the table
     seats.forEach((seat, k) => fly(seat.getBoundingClientRect(), (i * (seats.length + 1) + k) * STEP));
     const card = mine[i];
     fly(card.getBoundingClientRect(), (i * (seats.length + 1) + seats.length) * STEP, () => {
@@ -140,7 +159,7 @@ function lookDealIn(state) {
   setTimeout(() => mine.forEach(el => { el.style.visibility = ''; }), rounds * (seats.length + 1) * STEP + 900);
 }
 
-// ¡ÚLTIMA!: a big word over the table and a burst of confetti in the card colours + lime
+// ¡UNO!: a big word over the table and a burst of confetti in the four card colours
 function lookUnoBurst(rect) {
   if (typeof FX === 'undefined') return;
   const layer = FX.layer();
@@ -161,7 +180,7 @@ function lookUnoBurst(rect) {
     { transform: 'translate(-50%,-50%) scale(1) rotate(-4deg)', offset: .6 },
     { transform: 'translate(-50%,-60%) scale(1.05) rotate(-4deg)', opacity: 0 }
   ], { duration: 1300, easing: 'ease-out' }).onfinish = () => word.remove();
-  const colors = ['#E0322B', '#F4B814', '#1FA251', '#1F63E0', '#c6f432', '#2dd4bf'];
+  const colors = ['#e8343b', '#f5ac1d', '#22a454', '#2c6ae0', '#ff4f9a', '#ffd54a'];
   for (let i = 0; i < 36; i++) {
     const bit = document.createElement('span');
     bit.className = 'lk-confetti';

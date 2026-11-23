@@ -1,152 +1,187 @@
 /* ============================================================
-   ¡CAMALEÓN! — NEW LOOK (the 7 ideas of the "UNO Fiesta New Look" mock-up,
-   brought to ¡CAMALEÓN! in its own rainforest colours, 2026-11-23)
-   Loaded last (after style.css, extras.css and camaleon.css); those stay untouched.
+   UNO TEAMS — the UNO Fiesta NEW LOOK (7 ideas from the "UNO Fiesta New Look" mock-up), used as UNO TEAMS's look
+   Loaded after style.css and extras.css; style.css stays untouched.
    1 card faces · 2 table · 3 hand fan · 4 seats · 5 title screen · 6 font + buttons · 7 movement
    ============================================================ */
 :root {
-  --lk-white: #f6fbf3;      /* card border + leaf */
-  --lk-out:   #0c1f19;      /* dark outline used on numbers and pictures */
-  --lk-lime:  #c6f432;      /* the ⚡ power colour */
-  --lk-teal:  #2dd4bf;
+  --lk-white: #fbf6ef;      /* card border + diamond */
+  --lk-out:   #1b0d14;      /* dark outline used on numbers and pictures */
+  --lk-gold:  #ffd54a;
+  --lk-pink:  #ff4f9a;
   --lk-display: 'Lilita One', 'Arial Black', Impact, sans-serif;
   --lk-body:    'Nunito', 'Segoe UI', system-ui, sans-serif;
 }
 
 /* ============================================================
    1. REAL CARD FACES
-   White border, coloured face with a faint pattern of scales and a shine,
-   the tilted white leaf in the middle, a big outlined number (or a drawn picture).
-   Wilds get a four-colour leaf. Sizes inside the card use cqw (percent of the
-   card's width), so the same rules work in the hand, on the pile, previews and zoom.
+   White border, coloured face with a light confetti dot pattern and a shine,
+   a tilted white diamond in the middle, a big outlined number (or a drawn picture).
+   Sizes inside the card use cqw (percent of the card's width), so the same
+   rules work for the hand, the discard pile, previews and the zoom.
    ============================================================ */
-.card.c-red    { --cc2: #ff6a5c; }
-.card.c-yellow { --cc2: #ffd35a; }
-.card.c-green  { --cc2: #4fd384; }
-.card.c-blue   { --cc2: #5c95ff; }
-.card.c-wild   { --cc: #12211c; --cc2: #2b4a3f; }
+.card.red    { --cc: #e8343b; --cc2: #ff6a5c; }
+.card.yellow { --cc: #f5ac1d; --cc2: #ffd35a; }
+.card.green  { --cc: #22a454; --cc2: #55d27f; }
+.card.blue   { --cc: #2c6ae0; --cc2: #5c95ff; }
+.card.black  { --cc: #1a1220; --cc2: #3d2a45; }
 
-.card:is(.c-red, .c-yellow, .c-green, .c-blue, .c-wild) {
+.card.red, .card.yellow, .card.green, .card.blue, .card.black {
   container-type: inline-size;
+  color: #fff;
   border: 3px solid var(--lk-white);
   border-radius: 10px;
   background-color: var(--cc);
   background-image:
-    radial-gradient(circle at 50% 115%, rgba(255,255,255,.07) 34%, transparent 36%),
+    radial-gradient(rgba(255,255,255,.16) 1.2px, transparent 1.8px),
     linear-gradient(160deg, var(--cc2), var(--cc) 62%);
-  background-size: 8px 6px, 100% 100%;
+  background-size: 9px 9px, 100% 100%;
   box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 5px 12px rgba(0,0,0,.45), 0 2px 0 rgba(0,0,0,.35);
 }
+/* the drawn pictures replace the dashed "party" frame */
+.card.party { outline: none; }
+
+/* the white diamond */
+.card.red::before, .card.yellow::before, .card.green::before, .card.blue::before, .card.black::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 66%; aspect-ratio: 1; height: auto;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--lk-white);
+  border-radius: 24%;
+  box-shadow: 0 0 0 2px var(--lk-out), 2px 2px 0 2px rgba(0,0,0,.3);
+  z-index: 0;
+  pointer-events: none;
+}
 /* the shine across the top */
-.card:is(.c-red, .c-yellow, .c-green, .c-blue, .c-wild)::after {
+.card.red::after, .card.yellow::after, .card.green::after, .card.blue::after, .card.black::after {
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(155deg, rgba(255,255,255,.28) 0 24%, rgba(255,255,255,0) 25%);
+  background: linear-gradient(155deg, rgba(255,255,255,.3) 0 24%, rgba(255,255,255,0) 25%);
   pointer-events: none;
   z-index: 0;
 }
-/* the leaf: white with a dark edge */
-.card .card-oval {
-  width: 70%; height: 72%;
-  background: var(--lk-white);
-  box-shadow: 0 0 0 2px var(--lk-out), 2px 2px 0 2px rgba(0,0,0,.3);
-}
-/* a flex card's leaf sits a little higher, above its flex-colour band */
-.card.flex-color .card-oval { top: 42%; height: 62%; }
-/* wilds: four-colour leaf */
-.card.c-wild .card-oval {
-  display: block;
-  background: conic-gradient(from 45deg, #E0322B 0 25%, #1F63E0 0 50%, #1FA251 0 75%, #F4B814 0);
+/* wilds: four-colour diamond on top of the white one */
+.card .wild-diamond {
+  position: absolute; left: 50%; top: 50%;
+  width: 66%; aspect-ratio: 1;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border-radius: 24%;
+  background: conic-gradient(#e8343b 0 25%, #2c6ae0 0 50%, #22a454 0 75%, #f5ac1d 0);
+  z-index: 1;
 }
 .card .wild-quad, .card .wild-extra-label { display: none; }
 
 /* big number / +2 / +4 */
 .card .card-label.center,
-#top-card .card .card-label.center,
+#top-card .card-label.center,
 .player-hand .card .card-label.center {
   position: relative; z-index: 2;
   font-family: var(--lk-display);
   font-weight: 400;
-  font-size: 50cqw !important;   /* !important: beats the fixed rem sizes in style/extras/camaleon */
+  font-size: 52cqw !important;   /* !important: beats the many fixed rem sizes in style/extras */
   line-height: 1;
-  letter-spacing: 0;
   color: var(--cc);
   -webkit-text-stroke: 3.2cqw var(--lk-out);
   paint-order: stroke fill;
   text-shadow: 3cqw 3.5cqw 0 var(--lk-out);
 }
-.card.flex-color .card-label.center { margin-top: -14cqw; }
-.card.c-wild .card-label.center { color: #fff; font-size: 44cqw !important; }
+.card.black .card-label.center,
+.card .wild-diamond ~ .card-label.center { color: #fff; }
 /* drawn picture in the middle */
 .card .card-icon {
   position: relative; z-index: 2;
-  width: 46cqw; display: grid; place-items: center;
+  width: 48cqw; display: grid; place-items: center;
   color: var(--cc);
-  filter: drop-shadow(2.5cqw 3cqw 0 rgba(12,31,25,.9));
+  filter: drop-shadow(2.5cqw 3cqw 0 rgba(27,13,20,.9));
 }
-.card.flex-color .card-icon { margin-top: -14cqw; }
 .card .card-icon svg { width: 100%; height: auto; overflow: visible; }
-/* the Diana's "+2" under the target */
-.card .wild-sub {
-  position: absolute; left: 62%; top: 58%; z-index: 2; rotate: -8deg;
-  font-family: var(--lk-display); font-size: 22cqw; line-height: 1; color: #fff;
-  -webkit-text-stroke: 2.4cqw var(--lk-out); paint-order: stroke fill;
-}
+.card .wild-diamond ~ .card-icon { color: #fff; }
+.card .reverse-center { display: none; }
 
 /* corners */
-.card:is(.c-red, .c-yellow, .c-green, .c-blue, .c-wild) .card-label.tl,
-.card:is(.c-red, .c-yellow, .c-green, .c-blue, .c-wild) .card-label.br {
+.card .card-label.tl, .card .card-label.br,
+.card.yellow .card-label.tl, .card.yellow .card-label.br {
   z-index: 2;
   font-family: var(--lk-display);
   font-weight: 400;
-  font-size: 18cqw !important;
+  font-size: 17cqw;
   line-height: 1;
   color: #fff;
-  text-shadow: none;
   -webkit-text-stroke: 2.4cqw var(--lk-out);
   paint-order: stroke fill;
 }
 .card .card-label.tl { top: 5cqw; left: 7cqw; }
 .card .card-label.br { bottom: 5cqw; right: 7cqw; }
-.card .card-label.has-icon { width: 18cqw; color: #fff; display: grid; }
+.card .card-label.has-icon { width: 17cqw; color: #fff; display: grid; }
 .card .card-label.has-icon svg { width: 100%; height: auto; }
-/* 6 and 9 keep their underline */
-.card[data-v="6"] .card-label, .card[data-v="9"] .card-label { text-decoration-thickness: 1.2cqw; text-underline-offset: 2cqw; }
+.card .corner-quad {
+  display: block; width: 100%; aspect-ratio: 1; border-radius: 3px;
+  background: conic-gradient(#e8343b 0 25%, #2c6ae0 0 50%, #22a454 0 75%, #f5ac1d 0);
+  box-shadow: 0 0 0 1.5px var(--lk-out);
+}
 
-/* flex band + 🦎 corner + 🔄 badge: sized with the card */
-.card .flex-band { height: 25%; border-top: 2.5cqw solid var(--lk-white); z-index: 1; }
-.card.flex-color .card-label.br { z-index: 3; }
-.card .flex-badge, .card .flip-badge { z-index: 3; box-shadow: 0 0 0 1px var(--lk-out); }
-
-/* ---- card back (draw pile, flying cards) ---- */
-.card.card-back-cham {
-  container-type: inline-size;
+/* ---- card back (draw pile, flying cards, +4 challenge) ---- */
+.draw-pile .card-back,
+.fx-fly .card-back.fly-back,
+.card-back.w4c-facedown {
   border: 3px solid var(--lk-white);
   border-radius: 10px;
   background:
-    radial-gradient(circle at 50% 115%, rgba(198,244,50,.16) 34%, transparent 36%) 0 0 / 10px 8px,
-    radial-gradient(ellipse at 50% 30%, #1f7a5c, #0b3329 70%, #061f19);
+    radial-gradient(var(--lk-gold) 1.2px, transparent 1.8px) 0 0 / 14px 14px,
+    radial-gradient(var(--lk-pink) 1.2px, transparent 1.8px) 7px 7px / 14px 14px,
+    linear-gradient(160deg, #3b1030, #14060f);
   box-shadow: 0 5px 12px rgba(0,0,0,.5), 0 2px 0 rgba(0,0,0,.35);
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
-/* lime-to-teal leaf badge with a dark edge, the lizard on top */
-.card.card-back-cham .cb-scale {
-  width: 72%; height: 66%;
-  background: linear-gradient(135deg, var(--lk-lime), #14b8a6 55%, #1F63E0);
-  box-shadow: 0 0 0 2px var(--lk-out), 2px 2px 0 2px rgba(0,0,0,.3);
+/* pink diamond badge behind the name */
+.draw-pile .card-back::before,
+.fx-fly .card-back.fly-back::before,
+.card-back.w4c-facedown::before {
+  content: ''; display: block;
+  position: absolute; left: 50%; top: 50%;
+  width: 66%; height: auto; aspect-ratio: 1;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: linear-gradient(160deg, var(--lk-pink), #b8125e);
+  border-radius: 24%;
+  box-shadow: 0 0 0 2px var(--lk-out);
+  z-index: 0;
 }
-.card.card-back-cham .cb-mark { font-size: 40cqw; filter: drop-shadow(1.5cqw 2cqw 0 var(--lk-out)); }
+.draw-pile .card-back .back-uno,
+.fx-fly .card-back.fly-back .back-uno,
+.card-back.w4c-facedown .back-uno {
+  position: relative; z-index: 1;
+  background: none; border: 0; padding: 0;
+  font-family: var(--lk-display); font-weight: 400;
+  font-size: 1.15rem; letter-spacing: .5px; line-height: 1;
+  color: var(--lk-gold);
+  text-shadow: none;
+  -webkit-text-stroke: 3px var(--lk-out); paint-order: stroke fill;
+  transform: rotate(-12deg);
+}
+.draw-pile .card-back .back-party,
+.fx-fly .card-back.fly-back .back-party {
+  position: relative; z-index: 1;
+  background: none; padding: 0; margin-top: 1px;
+  font-family: var(--lk-display); font-weight: 400;
+  font-size: .5rem; letter-spacing: 1px; line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: 2px var(--lk-out); paint-order: stroke fill;
+  transform: rotate(-12deg);
+}
 
 /* ============================================================
    2. A REAL TABLE
-   The piles sit on a round felt table (green, with the faint scales) with a wooden
-   rim and a soft light in the middle. The drifting colour circles (extras.css) are
-   switched off, and the dashed lime ring around the piles (look.js) replaces ↻.
+   The piles sit on a round felt table with a wooden rim and a soft light in the
+   middle. The drifting colour circles (extras.css Y8) are switched off, and the
+   dashed ring around the piles (look.js) replaces the ↻ direction card.
    ============================================================ */
 #screen-game::before { display: none; }
 #screen-game {
   background:
     radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 40%, rgba(0,0,0,.45) 100%),
-    radial-gradient(ellipse at 50% 25%, #0f4a3a 0%, #082c23 55%, #041612 100%);
+    radial-gradient(ellipse at 50% 25%, #6e1048 0%, #3e0a27 55%, #22061a 100%);
 }
 .direction-indicator { display: none; }
 .game-table .pile-area {
@@ -163,41 +198,41 @@
   border-radius: 50%;
   z-index: -1;
   background:
-    radial-gradient(ellipse at 50% 42%, rgba(220,255,200,.2), rgba(220,255,200,0) 55%),
-    radial-gradient(circle at 50% 115%, rgba(255,255,255,.045) 34%, transparent 36%) 0 0 / 14px 11px,
-    radial-gradient(ellipse at center, #23946b, #0e4a39 80%);
+    radial-gradient(ellipse at 50% 42%, rgba(255,220,240,.2), rgba(255,220,240,0) 55%),
+    repeating-radial-gradient(circle at 30% 30%, rgba(255,255,255,.025) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, #8a1a5c, #3d0a29 80%);
   box-shadow:
-    0 0 0 7px #3c2412, 0 0 0 9px #6b4423, 0 0 0 10px #1a0f06,
-    0 18px 40px rgba(0,0,0,.55), inset 0 0 40px rgba(0,0,0,.5);
+    0 0 0 7px #3c1a12, 0 0 0 9px #6b3a23, 0 0 0 10px #200b07,
+    0 18px 40px rgba(0,0,0,.55), inset 0 0 40px rgba(0,0,0,.55);
 }
-.game-table .pile-label { color: rgba(255,255,255,.75); font-weight: 800; letter-spacing: 1.2px; font-size: .62rem; }
+.game-table .pile-label { color: rgba(255,255,255,.7); font-weight: 800; letter-spacing: 1.2px; font-size: .62rem; }
 
 /* direction ring */
 .dir-ring { position: absolute; inset: 12px 22px; z-index: -1; pointer-events: none; }
 .dir-ring svg { width: 100%; height: 100%; overflow: visible; display: block; }
 .dir-ring ellipse {
-  fill: none; stroke: var(--lk-lime); stroke-width: 2.5; opacity: .6;
+  fill: none; stroke: var(--lk-gold); stroke-width: 2.5; opacity: .6;
   stroke-dasharray: 9 11;
   animation: lk-march 1.4s linear infinite;
 }
 .dir-ring.ccw ellipse { animation-direction: reverse; }
 @keyframes lk-march { to { stroke-dashoffset: -40; } }
 /* arrowheads on the left and right ends of the ring */
-.dir-ring .dir-arrow {
+.dir-arrow {
   position: absolute; top: 50%; width: 0; height: 0;
   border-left: 6px solid transparent; border-right: 6px solid transparent;
-  border-top: 10px solid var(--lk-lime);
+  border-top: 10px solid var(--lk-gold);
   opacity: .85;
 }
-.dir-ring .dir-arrow-r { right: -5px; transform: translateY(-50%); }                 /* clockwise: down on the right */
-.dir-ring .dir-arrow-l { left: -5px;  transform: translateY(-50%) rotate(180deg); }  /* …and up on the left */
+.dir-arrow-r { right: -5px; transform: translateY(-50%); }                 /* clockwise: down on the right */
+.dir-arrow-l { left: -5px;  transform: translateY(-50%) rotate(180deg); }  /* …and up on the left */
 .dir-ring.ccw .dir-arrow-r { transform: translateY(-50%) rotate(180deg); }
 .dir-ring.ccw .dir-arrow-l { transform: translateY(-50%); }
 .dir-ring.flip { animation: lk-dir-flip .7s ease-out; }
 @keyframes lk-dir-flip {
-  0%   { transform: scale(1);    filter: drop-shadow(0 0 0 var(--lk-lime)); }
-  40%  { transform: scale(1.08); filter: drop-shadow(0 0 10px var(--lk-lime)); }
-  100% { transform: scale(1);    filter: drop-shadow(0 0 0 var(--lk-lime)); }
+  0%   { transform: scale(1);    filter: drop-shadow(0 0 0 var(--lk-gold)); }
+  40%  { transform: scale(1.08); filter: drop-shadow(0 0 10px var(--lk-gold)); }
+  100% { transform: scale(1);    filter: drop-shadow(0 0 0 var(--lk-gold)); }
 }
 body.calm .dir-ring ellipse, body.calm .dir-ring.flip { animation: none; }
 
@@ -211,11 +246,11 @@ body.calm .dir-ring ellipse, body.calm .dir-ring.flip { animation: none; }
 /* ============================================================
    3. YOUR HAND IN A FAN
    Rounder arc (extras.js fitHand), bigger cards on large screens.
-   On your turn the cards you can play rise and glow lime; the rest go dim.
+   On your turn the cards you can play rise and glow; the rest go dim.
    ============================================================ */
 .hand-area {
-  background: linear-gradient(180deg, rgba(4,22,18,.55), rgba(4,22,18,.94));
-  border-top: 1px solid rgba(198,244,50,.2);
+  background: linear-gradient(180deg, rgba(20,6,15,.55), rgba(20,6,15,.92));
+  border-top: 1px solid rgba(255,213,74,.18);
 }
 .player-hand.fitted { padding-top: 22px; padding-bottom: 16px; }
 @media (min-width: 700px) and (min-height: 700px) {
@@ -223,9 +258,9 @@ body.calm .dir-ring ellipse, body.calm .dir-ring.flip { animation: none; }
 }
 .player-hand.fitted .card.can-play {
   translate: 0 calc(var(--lift, 0px) - 12px);
-  box-shadow: 0 0 0 3px var(--lk-lime), 0 0 18px rgba(198,244,50,.55), 0 8px 14px rgba(0,0,0,.5);
+  box-shadow: 0 0 0 3px var(--lk-gold), 0 0 18px rgba(255,213,74,.55), 0 8px 14px rgba(0,0,0,.5);
 }
-.player-hand .card.cant-play, .player-hand .card.cant { filter: brightness(.5) saturate(.6); }
+.player-hand .card.cant-play { filter: brightness(.5) saturate(.6); }
 /* point at a card and it lifts (straightens out of the fan) */
 .player-hand.fitted .card.playable:hover,
 .player-hand.fitted .card.playable:focus-visible {
@@ -238,9 +273,8 @@ body.calm .dir-ring ellipse, body.calm .dir-ring.flip { animation: none; }
 
 /* ============================================================
    4. PLAYERS AROUND THE TABLE
-   Bigger faces in a ring, a spinning lime ring + "SU TURNO" tag on whoever's turn
-   it is, a red "¡ÚLTIMA!" tag at one card, and their cards as a small fan of backs.
-   The ⚡ Power Card stays next to the name.
+   Bigger faces in a ring, a spinning gold ring + "SU TURNO" tag on whoever's turn it
+   is, a red "¡UNO!" tag at one card, and their cards as a small fan of backs.
    ============================================================ */
 .opponents-row {
   background: transparent;
@@ -256,14 +290,12 @@ body.calm .dir-ring ellipse, body.calm .dir-ring.flip { animation: none; }
   min-width: 96px;
   border-radius: 16px;
   background: rgba(0,0,0,.28);
-  border: 0;
   outline: none;
   box-shadow: none;
   animation: none;
   overflow: visible;
 }
-#opponents-row .opponent.active-player { background: rgba(198,244,50,.1); }
-#opponents-row .opponent.next-player { box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); }
+.opponent.active-player { background: rgba(255,213,74,.1); }
 /* the face sits in a ring */
 .seat-ring {
   position: relative;
@@ -278,81 +310,81 @@ body.calm .dir-ring ellipse, body.calm .dir-ring.flip { animation: none; }
   content: '';
   position: absolute; inset: -4px;
   border-radius: 50%;
-  background: conic-gradient(var(--lk-lime), var(--lk-teal), var(--lk-lime));
+  background: conic-gradient(var(--lk-gold), var(--lk-pink), var(--lk-gold));
   -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%);
           mask: radial-gradient(circle, transparent 58%, #000 60%);
   animation: lk-spin 2.4s linear infinite;
 }
 @keyframes lk-spin { to { transform: rotate(1turn); } }
 .opponent.near-win .seat-ring { background: rgba(255,70,70,.75); box-shadow: 0 0 14px rgba(255,60,60,.6); }
-#opponents-row .opponent-name {
+.opponent-name {
   font-family: var(--lk-display); font-weight: 400;
-  font-size: .92rem; letter-spacing: .3px;
-  max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: .95rem; letter-spacing: .3px;
+  max-width: 110px;
 }
 /* tags */
 .seat-pill {
   position: absolute; top: -9px; right: -6px; z-index: 2;
   font-size: .58rem; font-weight: 900; letter-spacing: 1px;
   padding: 2px 7px; border-radius: 99px;
-  background: var(--lk-lime); color: var(--lk-out);
+  background: var(--lk-gold); color: var(--lk-out);
   box-shadow: 0 2px 6px rgba(0,0,0,.4);
   white-space: nowrap;
 }
-.seat-pill-uno { background: #E0322B; color: #fff; animation: lk-pulse 1s ease-in-out infinite; }
+.seat-pill-uno { background: #e8343b; color: #fff; animation: lk-pulse 1s ease-in-out infinite; }
 @keyframes lk-pulse { 50% { transform: scale(1.12); } }
 /* small fan of card backs */
-#opponents-row .opponent-cards {
-  display: flex; flex-wrap: nowrap; gap: 0;
+.opponent-cards {
+  flex-wrap: nowrap; gap: 0;
   height: 30px; align-items: flex-end;
-  padding: 0 4px; max-width: none;
+  padding: 0 4px;
 }
-#opponents-row .mini-back {
+.opponent-cards .card-back.mini {
   width: 17px; height: 25px;
   margin-left: -9px;
   border-radius: 3px;
   border: 1.5px solid var(--lk-white);
   background:
-    radial-gradient(circle at 50% 45%, var(--lk-lime) 0 20%, transparent 23%),
-    linear-gradient(160deg, #1f7a5c, #0b3329);
+    radial-gradient(var(--lk-gold) .9px, transparent 1.3px) 0 0 / 6px 6px,
+    linear-gradient(160deg, #3b1030, #14060f);
   transform-origin: 50% 120%;
   rotate: calc((var(--k) - (var(--n) - 1) / 2) * 7deg);
   box-shadow: 0 2px 4px rgba(0,0,0,.5);
 }
-#opponents-row .mini-back:first-child { margin-left: 0; }
-#opponents-row .opponent-count { font-size: .68rem; font-weight: 800; color: rgba(255,255,255,.65); }
+.opponent-cards .card-back.mini:first-child { margin-left: 0; }
+.opponent-count { font-size: .68rem; font-weight: 800; color: rgba(255,255,255,.65); }
 body.calm .opponent.active-player .seat-ring::before, body.calm .seat-pill-uno { animation: none; }
 
 @media (max-height: 700px) {
   #opponents-row .seat-face { width: 34px; height: 34px; }
   #opponents-row .opponent { padding: .4rem .6rem .3rem; min-width: 84px; }
-  #opponents-row .opponent-cards { height: 24px; }
-  #opponents-row .mini-back { width: 14px; height: 20px; margin-left: -8px; }
+  .opponent-cards { height: 24px; }
+  .opponent-cards .card-back.mini { width: 14px; height: 20px; margin-left: -8px; }
 }
 
 /* ============================================================
    5. TITLE SCREEN
-   Big logo (a fan of real cards + ¡CAMALEÓN!), clear buttons, and the long rules
+   Big logo (a fan of real cards + UNO / FIESTA), clear buttons, and the long rules
    summary moved out: "Cómo jugar" opens the full rules window instead.
    Button order: name → Jugar contra bots → Crear sala / Unirse → guided game → rules.
    ============================================================ */
 #screen-landing {
   background:
-    radial-gradient(ellipse at 50% 22%, rgba(198,244,50,.16), rgba(198,244,50,0) 40%),
-    radial-gradient(ellipse at 50% 30%, #12866a 0%, #0a4a3b 50%, #041a15 90%);
+    radial-gradient(ellipse at 50% 22%, rgba(255,213,74,.16), rgba(255,213,74,0) 40%),
+    radial-gradient(ellipse at 50% 30%, #c8126c 0%, #74003a 50%, #24001a 90%);
 }
 .landing-card {
-  background: rgba(4,26,21,.6);
+  background: rgba(30,6,20,.55);
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 24px;
   padding: 1.6rem 1.6rem 1.3rem;
   width: min(420px, 94vw);
   gap: .85rem;
 }
-.landing-card .rules-card, .landing-card .logo-cham { display: none; }
+.landing-card .rules-card { display: none; }
 .landing-lang   { order: 0; }
 .game-title     { order: 1; }
-.landing-card > .tagline { order: 2; margin-top: .3rem; color: #d4f7e6; }
+.landing-card > .tagline { order: 2; margin-top: -.2rem; color: #ffd0e6; }
 .name-emoji-area { order: 3; margin-top: .3rem; }
 #quick-bots-btn { order: 4; }
 .landing-card > .btn-group { order: 5; }
@@ -364,7 +396,7 @@ body.calm .opponent.active-player .seat-ring::before, body.calm .seat-pill-uno {
 .stats-link     { order: 11; }
 
 /* logo */
-.game-title { position: relative; padding-top: 4px; display: flex; flex-direction: column; align-items: center; }
+.game-title { position: relative; padding-top: 4px; }
 .title-fan { display: flex; justify-content: center; align-items: flex-end; height: 96px; }
 .title-fan .card { width: 54px !important; height: 81px !important; margin-left: -16px; transform-origin: 50% 110%; }
 .title-fan .card:first-child { margin-left: 0; }
@@ -372,27 +404,37 @@ body.calm .opponent.active-player .seat-ring::before, body.calm .seat-pill-uno {
 .title-fan .card:nth-child(2) { rotate: -6deg; }
 .title-fan .card:nth-child(3) { rotate: 6deg; }
 .title-fan .card:nth-child(4) { rotate: 18deg; translate: 0 8px; }
-.game-title .title-main {
+.game-title .title-uno {
   font-family: var(--lk-display); font-weight: 400;
-  font-size: clamp(2.4rem, 11vw, 3.6rem); line-height: .95; letter-spacing: 1px;
+  font-size: 4.6rem; line-height: .9; letter-spacing: 1px;
+  color: var(--lk-gold); -webkit-text-fill-color: var(--lk-gold);
+  background: none; border: 0; padding: 0; box-shadow: none; outline: none;
   -webkit-text-stroke: 4px var(--lk-out); paint-order: stroke fill;
-  text-shadow: 4px 5px 0 var(--lk-out);
-  margin-top: -8px; rotate: -4deg; position: relative; z-index: 1;
+  text-shadow: 5px 6px 0 var(--lk-out);
+  margin-top: -34px; rotate: -4deg; position: relative; z-index: 1;
 }
-/* the letters keep cycling through the four card colours (camaleon.css) */
+.game-title .title-party {
+  font-family: var(--lk-display); font-weight: 400;
+  font-size: 1.9rem; letter-spacing: 7px; line-height: 1;
+  color: #fff; -webkit-text-fill-color: #fff;
+  -webkit-text-stroke: 2.5px var(--lk-out); paint-order: stroke fill;
+  text-shadow: 3px 4px 0 var(--lk-out);
+  rotate: -4deg; margin-top: 2px; position: relative; z-index: 1;
+}
+.game-title .title-uno::before, .game-title .title-uno::after,
+.game-title .title-party::before, .game-title .title-party::after { display: none; }
 
 /* big chunky buttons (same family as step 6) */
 #screen-landing .btn { font-family: var(--lk-display); font-weight: 400; letter-spacing: .4px; border-radius: 14px; min-height: 50px; font-size: 1.15rem; }
 #quick-bots-btn {
-  background: var(--lk-lime); color: var(--lk-out); border: 0;
-  box-shadow: 0 4px 0 #6a8f0c, 0 8px 16px rgba(0,0,0,.35);
+  background: var(--lk-gold); color: var(--lk-out); border: 0;
+  box-shadow: 0 4px 0 #b8860b, 0 8px 16px rgba(0,0,0,.35);
   font-size: 1.35rem; min-height: 58px;
 }
-#quick-bots-btn:hover { background: #d4ff52; }
-.landing-card > .btn-group .btn { font-size: 1.05rem; line-height: 1.1; }
+#quick-bots-btn:hover { background: #ffde6b; }
 #create-btn {
-  background: #0d9488; color: #fff;
-  box-shadow: 0 4px 0 #075c55, 0 8px 16px rgba(0,0,0,.35);
+  background: var(--lk-pink); color: #fff;
+  box-shadow: 0 4px 0 #a3105e, 0 8px 16px rgba(0,0,0,.35);
   -webkit-text-stroke: 1px var(--lk-out); paint-order: stroke fill;
 }
 .landing-card > .btn-group .btn-secondary {
@@ -404,12 +446,12 @@ body.calm .opponent.active-player .seat-ring::before, body.calm .seat-pill-uno {
   background: rgba(255,255,255,.07); border: 1.5px dashed rgba(255,255,255,.3);
   color: #fff; font-size: 1rem; min-height: 46px;
 }
-.how-link { align-self: center; color: #c8f5df; font-size: .9rem; }
-.stats-link { align-self: center; color: #c8f5df; }
+.how-link { align-self: center; color: #ffd0e6; font-size: .9rem; }
+.stats-link { align-self: center; color: #ffd0e6; }
 @media (max-height: 700px) {
   .title-fan { height: 70px; }
   .title-fan .card { width: 40px !important; height: 60px !important; }
-  .game-title .title-main { margin-top: -6px; }
+  .game-title .title-uno { font-size: 3.6rem; margin-top: -26px; }
 }
 
 /* ============================================================
@@ -428,12 +470,12 @@ h1, h2, h3,
 h2 { text-wrap: balance; }
 .game-status { font-size: 1.2rem; }
 .game-status.my-turn {
-  font-size: 1.45rem; color: var(--lk-lime);
+  font-size: 1.45rem; color: var(--lk-gold);
   -webkit-text-stroke: 1.5px var(--lk-out); paint-order: stroke fill;
-  text-shadow: 2px 3px 0 var(--lk-out), 0 0 18px rgba(198,244,50,.4);
+  text-shadow: 2px 3px 0 var(--lk-out), 0 0 18px rgba(255,213,74,.45);
 }
 .game-status.other-turn {
-  color: #a7f3d0;
+  color: #ffc2e0;
   -webkit-text-stroke: 1.2px var(--lk-out); paint-order: stroke fill;
   text-shadow: 2px 2px 0 var(--lk-out);
 }
@@ -450,70 +492,60 @@ h2 { text-wrap: balance; }
   transition: transform .08s, box-shadow .08s, background .15s, filter .15s;
 }
 .btn:active:not(:disabled) { transform: translateY(2px); }
-.btn-primary   { background: #0d9488; color: #fff; box-shadow: 0 3px 0 #075c55, 0 6px 12px rgba(0,0,0,.3); }
-.btn-secondary { background: #1d5a4a; color: #fff; box-shadow: 0 3px 0 #0a2a22, 0 6px 12px rgba(0,0,0,.3); }
-.btn-danger    { background: linear-gradient(180deg, #ef4a43, #c42520); color: #fff; box-shadow: 0 3px 0 #7a110c, 0 6px 12px rgba(0,0,0,.3); }
-.btn-ghost     { background: rgba(255,255,255,.07); color: #dff7ec; border: 1px solid rgba(255,255,255,.14); box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.btn-primary   { background: var(--lk-pink); color: #fff; box-shadow: 0 3px 0 #a3105e, 0 6px 12px rgba(0,0,0,.3); }
+.btn-secondary { background: #5a2147; color: #fff; box-shadow: 0 3px 0 #2a0a20, 0 6px 12px rgba(0,0,0,.3); }
+.btn-danger    { background: linear-gradient(180deg, #f0464d, #c42029); color: #fff; box-shadow: 0 3px 0 #7a0c12, 0 6px 12px rgba(0,0,0,.3); }
+.btn-ghost     { background: rgba(255,255,255,.07); color: #f3dcea; border: 1px solid rgba(255,255,255,.14); box-shadow: 0 3px 0 rgba(0,0,0,.35); }
 .btn-primary:hover:not(:disabled), .btn-secondary:hover:not(:disabled),
 .btn-danger:hover:not(:disabled),  .btn-ghost:hover:not(:disabled) { filter: brightness(1.12); }
 .btn-primary:active:not(:disabled), .btn-secondary:active:not(:disabled),
 .btn-danger:active:not(:disabled),  .btn-ghost:active:not(:disabled) { box-shadow: 0 1px 0 rgba(0,0,0,.4); }
 .btn:focus-visible, .lang-btn:focus-visible, .link-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 
-/* top bar: one style for 📖 🎤 💬 ⚙️ and Salir */
-.game-topbar { background: rgba(4,22,18,.6); }
+/* top bar: one style for 📖 💬 🎤 ⚙️ and Salir */
+.game-topbar { background: rgba(20,6,15,.6); }
 .game-topbar .btn-sm {
-  display: inline-flex; align-items: center; justify-content: center; gap: .3rem;
   min-width: 40px; min-height: 38px;
   padding: .2rem .7rem;
   font-size: .95rem;
   border-radius: 12px;
   border: 0;
-  background: linear-gradient(180deg, #1f5245, #133a30);
+  background: linear-gradient(180deg, #4a2240, #33162c);
   color: #fff;
-  box-shadow: 0 3px 0 #061a15, inset 0 0 0 1px rgba(255,255,255,.1);
+  box-shadow: 0 3px 0 #170810, inset 0 0 0 1px rgba(255,255,255,.1);
 }
-.game-topbar .btn-sm.btn-danger { background: linear-gradient(180deg, #ef4a43, #c42520); box-shadow: 0 3px 0 #7a110c; }
-.game-topbar .btn-sm:active { transform: translateY(2px); box-shadow: 0 1px 0 #061a15; }
+.game-topbar .btn-sm.btn-danger { background: linear-gradient(180deg, #f0464d, #c42029); box-shadow: 0 3px 0 #7a0c12; }
+.game-topbar .btn-sm:active { transform: translateY(2px); box-shadow: 0 1px 0 #170810; }
 .game-topbar .game-room-code { border-radius: 10px; min-height: 34px; font-family: var(--lk-display); font-weight: 400; font-size: .85rem; }
-/* "📖 Reglas": the word shows when there is room */
-.tb-label { font-size: .85rem; }
-@media (max-width: 520px) {
-  .tb-label { display: none; }
-}
 @media (max-width: 480px) {
   .game-topbar .btn-sm { min-width: 34px; min-height: 32px; padding: .15rem .45rem; font-size: .85rem; }
 }
-/* the settings menu keeps its own small buttons */
-.game-menu .btn-sm { min-height: 0; box-shadow: none; }
 
 /* language switch */
 .lang-switch { border: 0; border-radius: 99px; background: rgba(0,0,0,.35); padding: 2px; }
-.lang-btn { background: transparent; color: #dff7ec; border-radius: 99px; font-weight: 900; }
-.lang-btn.selected { background: var(--lk-lime); color: var(--lk-out); }
+.lang-btn { background: transparent; color: #f3dcea; border-radius: 99px; font-weight: 900; }
+.lang-btn.selected { background: var(--lk-gold); color: var(--lk-out); }
 /* keep the turn-order line on one row on phones */
 .turn-order-info { white-space: nowrap; gap: .4rem; }
 .toi-name { max-width: 28vw; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 480px) {
-  .toi-item { gap: .3rem; min-width: 0; }
-  .toi-name { font-size: .72rem; max-width: 21vw; }
+  .toi-name { font-size: .72rem; }
   .toi-label { font-size: .52rem; letter-spacing: .4px; }
 }
 
 /* ============================================================
    7. MOVEMENT
-   Deal at the start of a round, higher arc + landing bounce for played cards (fx.js),
-   and a big ¡ÚLTIMA! with confetti (look.js). Calm mode keeps it still.
+   Deal at the start of a game, higher arc + landing bounce for played cards (fx.js),
+   and a big ¡UNO! with confetti (look.js). Calm mode keeps it still.
    ============================================================ */
 .lk-uno-burst {
   position: fixed; z-index: 10;
-  font-family: var(--lk-display); font-size: 4.2rem; line-height: 1;
-  color: var(--lk-lime);
+  font-family: var(--lk-display); font-size: 4.5rem; line-height: 1;
+  color: var(--lk-gold);
   -webkit-text-stroke: 4px var(--lk-out); paint-order: stroke fill;
   text-shadow: 5px 6px 0 var(--lk-out);
   white-space: nowrap; pointer-events: none;
 }
 .lk-confetti { position: fixed; z-index: 9; width: 8px; height: 13px; border-radius: 2px; pointer-events: none; }
 .fx-fly.lk-deal { position: fixed; left: 0; top: 0; }
-.fx-fly.lk-deal .card { width: 60px; height: 90px; }
 .fx-uno-word { font-family: var(--lk-display); }
