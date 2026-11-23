@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <title>¡CAMALEÓN!</title>
+  <meta name="description" content="Juego de cartas online con cartas flex y Cartas de Poder. Juega con amigos o contra bots.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Lilita+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <!-- Install as an app -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#0a2a22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="¡CAMALEÓN!">
+  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="extras.css?v=2">
+  <link rel="stylesheet" href="camaleon.css?v=1">
+  <!-- new look (look.css + look.js): cards, table, hand fan, seats, title screen, font, movement -->
+  <link rel="stylesheet" href="look.css?v=9">
+  <script src="https://cdn.jsdelivr.net/npm/emoji-mart@5/dist/browser.js"></script>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="screen-landing" class="screen active">
+  <div class="landing-card">
+    <div class="landing-lang"><span class="lang-switch"><button type="button" class="lang-btn" data-lang="es" onclick="setLanguage('es')">ES</button><button type="button" class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button></span></div>
+    <!-- The logo is a chameleon card that keeps changing colour -->
+    <div class="logo-cham" aria-hidden="true"><div class="logo-card"><span class="logo-lizard">🦎</span><span class="logo-bolt">⚡</span></div></div>
+    <h1 class="game-title"><span class="title-fan" aria-hidden="true"></span><span class="title-main" aria-label="¡CAMALEÓN!"><span>¡</span><span>C</span><span>A</span><span>M</span><span>A</span><span>L</span><span>E</span><span>Ó</span><span>N</span><span>!</span></span></h1>
+    <p class="tagline" data-i18n="land.tagline">Cartas con un segundo color, una ⚡ Carta de Poder frente a ti. Usa el lado flex en el momento justo.</p>
+    <div class="rules-card">
+      <h2 data-i18n="land.howTitle">Cómo jugar</h2>
+      <p data-i18n="land.how1">Juega una carta que coincida en <strong>color, número o símbolo</strong> con la de la mesa, o un comodín. ¿No puedes (o no quieres)? Roba una. ¿Te queda una sola? Grita <strong>¡ÚLTIMA!</strong></p>
+      <p data-i18n="land.how2">Las <strong>🦎 cartas flex</strong> tienen un color normal y un segundo color <strong>flex</strong>. Mientras tu <strong>⚡ Carta de Poder</strong> esté en verde puedes jugar el lado flex: coincidir por su color flex o lanzar la acción flex, más fuerte. El siguiente sigue con el color normal de la carta. Usar un lado flex pone tu Carta de Poder en rojo.</p>
+      <ul data-i18n="land.how3">
+        <li>Acciones flex: <strong>Roba Dos</strong> → todos los demás roban 1 · <strong>Salto</strong> → salta a todos · <strong>Reversa</strong> → cambia y salta · <strong>Comodín Diana +2 / Roba Cuatro</strong> → roba el jugador que elijas · <strong>Comodín Todos Roban</strong> → todos los demás roban 2.</li>
+        <li>Tu Carta de Poder se voltea al jugar una carta de número con <strong>🔄</strong>, cuando alguien juega un <strong>Comodín Voltea Todos</strong>, y todas vuelven a verde cuando <strong>todos están en rojo</strong>.</li>
+        <li>El Comodín Roba Cuatro (lado normal) solo es limpio si no tienes cartas del color ni comodines — el siguiente puede <strong>desafiarte</strong>.</li>
+      </ul>
+      <p data-i18n="land.how4">Vacía tu mano para ganar la ronda y llevarte los puntos de las cartas de los demás. Juega una ronda o una partida a 500. De 2 a 8 jugadores.</p>
+      <button type="button" class="link-btn" onclick="openRules()" data-i18n="land.allRules">Ver todas las reglas →</button>
+    </div>
+    <!-- Guided first game (tutorial.js fills in the text) -->
+    <button type="button" id="tutorial-link" class="btn tutorial-link" onclick="startTutorial()">🎓 ¿Primera vez? Aprende jugando (2 min)</button>
+    <div class="name-emoji-area">
+      <div class="name-input-row">
+        <button type="button" id="emoji-trigger-btn" class="emoji-trigger" onclick="toggleEmojiPicker(event)" title="Elige un emoji" data-i18n-title="land.emoji"><span class="emoji-face">🙂</span><span class="emoji-clear">×</span></button>
+        <input type="text" id="player-name" placeholder="Tu nombre" data-i18n-ph="land.name" maxlength="16" autocomplete="off">
+      </div>
+      <div id="emoji-picker-wrap" class="emoji-picker-wrap hidden"></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="create-btn" onclick="handleCreate()" data-i18n="land.create">Crear sala</button>
+      <button class="btn btn-secondary" onclick="showJoin()" data-i18n="land.joinCode">Unirse con código</button>
+    </div>
+    <div id="join-form" class="hidden" style="display:flex;flex-direction:column;gap:.75rem">
+      <input type="text" id="room-code-input" placeholder="Código de sala (p.ej. XK7M2P)" data-i18n-ph="land.codePh" maxlength="6"
+        autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+      <button class="btn btn-primary" onclick="handleJoin()" data-i18n="land.join">Unirse</button>
+    </div>
+    <!-- One tap into a game against 3 bots -->
+    <button class="btn btn-bots-quick" id="quick-bots-btn" onclick="handleQuickBots()">🤖 <span data-i18n="land.bots">Jugar contra bots</span></button>
+    <div id="landing-error" class="error hidden"></div>
+    <!-- new look (title screen): the rules summary above is hidden on the start page; this opens the full rules window -->
+    <button type="button" class="link-btn how-link" onclick="openRules()">📖 <span data-i18n="land.howLink">Cómo jugar</span></button>
+    <p class="muted" style="font-size:.75rem;text-align:center" data-i18n="land.players">Hasta 8 jugadores · No se necesita cuenta</p>
+    <button type="button" class="link-btn stats-link" onclick="openMyStats()">🏅 <span data-i18n="stats.open">Tus estadísticas e insignias</span><span id="stats-link-count"></span></button>
+  </div>
+</div>
+
+<!-- LOBBY -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-card">
+    <h2 data-i18n="lob.title">Sala de espera</h2>
+    <div class="room-code-display">
+      <span data-i18n="lob.code">Código:</span>
+      <span id="lobby-code" class="room-code"></span>
+      <button class="btn-copy" onclick="copyCode()" data-i18n="ui.copy">Copiar</button>
+    </div>
+    <div id="player-list" class="player-list"></div>
+    <div class="lobby-actions">
+      <button id="start-btn" class="btn btn-primary hidden" onclick="handleStart()">Iniciar partida</button>
+      <p id="waiting-msg" class="muted" data-i18n="lob.waitHost">Esperando al anfitrión…</p>
+      <button class="btn btn-ghost btn-sm" onclick="handleLeaveLobby()" data-i18n="lob.leave">Salir de la sala</button>
+    </div>
+    <p class="muted" style="font-size:.75rem;text-align:center" data-i18n="lob.share">Comparte el código con amigos para unirse</p>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+
+  <!-- Game top bar -->
+  <div class="game-topbar">
+    <span id="end-vote-status" class="end-vote-status"></span>
+    <div id="now-playing-carousel" class="now-playing-carousel hidden"></div>
+    <div class="game-topbar-actions">
+      <button class="game-room-code online-only" id="game-room-code" onclick="copyGameCode(this)" title="Copiar código" data-i18n-title="g.copyCode">
+        <span id="game-room-code-text"></span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="openRules()" title="Reglas" data-i18n-title="g.rules">📖<span class="tb-label" data-i18n="g.rules">Reglas</span></button>
+      <button class="btn btn-ghost btn-sm btn-voice online-only" id="voice-toggle-btn" onclick="toggleVoice()" title="Unirse al chat de voz">🎤</button>
+      <button class="btn btn-ghost btn-sm btn-chat online-only" id="chat-toggle-btn" onclick="toggleChat()" title="Chat" data-i18n-title="g.chat">💬<span id="chat-unread" class="chat-unread hidden">0</span></button>
+
+      <!-- Settings menu: each row is clickable as a whole -->
+      <div class="menu-wrap">
+        <button class="btn btn-ghost btn-sm btn-menu" id="menu-btn" onclick="toggleGameMenu(event)" title="Ajustes" data-i18n-title="menu.title" aria-haspopup="true" aria-expanded="false">⚙️<span id="menu-dot" class="menu-dot hidden"></span></button>
+        <div id="game-menu" class="game-menu hidden" role="menu">
+          <div class="menu-section online-only" data-i18n="menu.game">Partida</div>
+          <div class="menu-row online-only"><button class="btn btn-ghost btn-sm" id="end-game-btn" onclick="handleEndGameVote()">Terminar</button><span class="menu-label" data-i18n="menu.end">Votar para terminar la partida</span></div>
+          <div class="menu-section" data-i18n="menu.sound">Sonido</div>
+          <div class="menu-row"><button class="btn btn-ghost btn-sm btn-music" id="music-toggle-btn" onclick="toggleMusic()" title="Música">🎵</button><span class="menu-label" data-i18n="menu.music">Música de fondo</span></div>
+          <div class="menu-row"><button class="menu-switch" id="sfx-toggle-btn" onclick="toggleFxPref('sfx')" aria-pressed="true"></button><span class="menu-label" data-i18n="menu.sfx">Efectos de sonido</span></div>
+          <div class="menu-row menu-row-slider"><span class="menu-icon">🔊</span><input type="range" id="sfx-volume" min="0" max="100" step="5" aria-label="Volumen" oninput="setFxVolume(this.value)"><span class="menu-label" data-i18n="menu.volume">Volumen</span></div>
+          <div class="menu-row"><button class="btn btn-ghost btn-sm btn-notif" id="notif-toggle-btn" onclick="toggleNotifications()" title="Activar notificaciones">🔕</button><span class="menu-label" data-i18n="menu.notif">Avisos cuando es tu turno</span></div>
+          <div class="menu-section online-only" data-i18n="menu.shared">Música compartida</div>
+          <div class="menu-row online-only">
+      <button class="btn btn-ghost btn-sm btn-spotify" id="spotify-btn" onclick="openSpotifyModal()" title="Spotify">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.820 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      </button><span class="menu-label">Spotify</span></div>
+          <div class="menu-row online-only">
+<button class="btn btn-ghost btn-sm btn-lastfm" id="lastfm-btn" onclick="openLastfmModal()" title="Conectar Last.fm">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M10.584 17.21l-.88-2.392s-1.43 1.594-3.573 1.594c-1.897 0-3.244-1.649-3.244-4.288 0-3.382 1.704-4.591 3.381-4.591 2.42 0 3.189 1.567 3.849 3.574l.88 2.749c.88 2.666 2.529 4.81 7.285 4.81 3.409 0 5.718-1.044 5.718-3.793 0-2.227-1.265-3.381-3.63-3.931l-1.758-.385c-1.21-.275-1.567-.77-1.567-1.595 0-.934.742-1.484 1.952-1.484 1.32 0 2.034.495 2.144 1.677l2.749-.33c-.22-2.474-1.924-3.492-4.729-3.492-2.474 0-4.893.935-4.893 3.932 0 1.87.907 3.051 3.189 3.601l1.87.44c1.402.33 1.869.907 1.869 1.704 0 1.017-.99 1.43-2.860 1.43-2.776 0-3.930-1.457-4.590-3.464l-.907-2.75c-1.155-3.573-2.997-4.893-6.653-4.893C2.144 5.333 0 7.89 0 12.233c0 4.18 2.144 6.434 5.993 6.434 3.106 0 4.591-1.457 4.591-1.457z"/></svg>
+      </button><span class="menu-label">Last.fm</span></div>
+          <div class="menu-section" data-i18n="menu.screen">Pantalla</div>
+          <div class="menu-row"><button class="menu-switch" id="vibrate-toggle-btn" onclick="toggleFxPref('vibrate')" aria-pressed="true"></button><span class="menu-label" data-i18n="menu.vibrate">Vibración</span></div>
+          <div class="menu-row"><button class="menu-switch" id="calm-toggle-btn" onclick="toggleFxPref('calm')" aria-pressed="false"></button><span class="menu-label" data-i18n="menu.calm">Modo calma (menos movimiento)</span></div>
+          <div class="menu-row"><button class="menu-switch" id="colorblind-toggle-btn" onclick="toggleFxPref('colorblind')" aria-pressed="false"></button><span class="menu-label" data-i18n="menu.colorblind">Símbolos para daltónicos</span></div>
+          <div class="menu-row"><span class="lang-switch"><button type="button" class="lang-btn" data-lang="es" onclick="setLanguage('es')">ES</button><button type="button" class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button></span><span class="menu-label" data-i18n="menu.lang">Idioma</span></div>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-sm" id="leave-game-btn" onclick="handleLeaveGame()" data-i18n="g.leave">Salir</button>
+    </div>
+  </div>
+
+  <!-- Opponents: face, ⚡ token, name and face-down cards -->
+  <div id="opponents-row" class="opponents-row"></div>
+
+  <!-- Table -->
+  <div class="game-table">
+    <div class="table-center">
+      <div class="table-info">
+        <div id="color-indicator" class="color-indicator"></div>
+        <div id="direction-indicator" class="direction-indicator"></div>
+      </div>
+      <div class="pile-area">
+        <div class="pile draw-pile" id="draw-pile-area" onclick="handleDraw()">
+          <div class="pile-stack"><div id="draw-pile-card"></div><span id="draw-count" class="draw-count">0</span></div>
+          <span class="pile-label" data-i18n="g.drawPile">Robar</span>
+        </div>
+        <div class="pile discard-pile">
+          <div id="top-card" class="top-card-slot"></div>
+          <span class="pile-label" data-i18n="g.discardPile">Mesa</span>
+        </div>
+      </div>
+      <div class="turn-actions">
+        <button id="pass-btn" class="btn btn-secondary hidden" onclick="handlePassTurn()" data-i18n="g.pass">Pasar turno</button>
+      </div>
+      <div id="game-status" class="game-status"></div>
+    </div>
+
+    <!-- ¡ÚLTIMA! overlay -->
+    <div id="uno-call-overlay" class="uno-call-overlay hidden">
+      <div class="uno-call-content">
+        <p id="uno-call-label" class="uno-call-label"></p>
+        <button id="uno-call-btn" class="btn-uno-mega" onclick="handleUnoCallBtn()"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div id="game-log" class="game-log"></div>
+
+  <!-- Hand -->
+  <div class="hand-area">
+    <div class="hand-head">
+      <div id="hand-label" class="hand-label">Tu mano</div>
+      <!-- my ⚡ power token (app.js renderHand) -->
+      <div id="my-power" class="my-power"></div>
+    </div>
+    <div id="turn-order-info" class="turn-order-info hidden"></div>
+    <div id="player-hand" class="player-hand"></div>
+  </div>
+</div>
+
+<!-- WINNER -->
+<div id="screen-winner" class="screen">
+  <div class="winner-card">
+    <h2 id="winner-title">🎉 ¡Ganador!</h2>
+    <p id="winner-name" class="winner-name"></p>
+    <p id="winner-sub" class="winner-sub"></p>
+    <div id="winner-standings" class="winner-standings hidden"></div>
+    <div class="winner-actions">
+      <button id="next-round-btn" class="btn btn-primary hidden" onclick="handleNextRound()" data-i18n="w.next">Siguiente ronda ▶</button>
+      <p id="next-round-wait" class="muted hidden" data-i18n="w.nextWait">Esperando a que el anfitrión reparta la siguiente ronda…</p>
+      <button id="again-btn" class="btn btn-secondary online-only" onclick="backToLobby()">Jugar de nuevo</button>
+      <button class="btn btn-secondary online-only" onclick="showJoinAnother()" data-i18n="w.other">Unirse a otra sala</button>
+      <button class="btn btn-ghost" onclick="returnToMain()" data-i18n="tut.home">Volver al inicio</button>
+    </div>
+    <div id="join-another-form" class="join-another-form hidden">
+      <input type="text" id="winner-room-code" placeholder="Código de sala (p.ej. XK7M2P)" data-i18n-ph="land.codePh" maxlength="6"
+        autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+      <button class="btn btn-primary" onclick="handleJoinAnother()" data-i18n="land.join">Unirse</button>
+    </div>
+    <div id="winner-error" class="error hidden"></div>
+  </div>
+</div>
+
+<!-- Chat Panel -->
+<div id="chat-panel" class="chat-panel hidden">
+  <div class="chat-header">
+    <span data-i18n="g.chat">Chat</span>
+    <button class="chat-close" onclick="toggleChat()">×</button>
+  </div>
+  <div id="chat-players" class="chat-players"></div>
+  <div id="chat-messages" class="chat-messages"></div>
+  <div class="chat-emotes">
+    <button class="chat-emote-btn" onclick="sendEmote('😂')">😂</button>
+    <button class="chat-emote-btn" onclick="sendEmote('👍')">👍</button>
+    <button class="chat-emote-btn" onclick="sendEmote('🤔')">🤔</button>
+    <button class="chat-emote-btn" onclick="sendEmote('😅')">😅</button>
+    <button class="chat-emote-btn" onclick="sendEmote('😮')">😮</button>
+    <button class="chat-emote-btn" onclick="sendEmote('🎉')">🎉</button>
+    <button class="chat-emote-btn" onclick="sendEmote('🦎')">🦎</button>
+    <button class="chat-emote-btn" onclick="sendEmote('🤡')">🤡</button>
+  </div>
+  <div class="chat-input-row">
+    <input type="text" id="chat-input" placeholder="Mensaje…" data-i18n-ph="chat.ph" maxlength="100" autocomplete="off" onkeydown="handleChatKeydown(event)">
+    <button class="btn btn-primary btn-sm" onclick="handleChatSend()">→</button>
+  </div>
+</div>
+<!-- Speech bubble overlay -->
+<div id="speech-bubbles" class="speech-bubbles"></div>
+
+<!-- Play window (bottom sheet): the colour for a wild or a chameleon card, and the ⚡ power -->
+<div id="claim-dialog" class="claim-dialog hidden">
+  <div class="claim-dialog-inner">
+    <h3 id="claim-dialog-title">Elige el color</h3>
+    <div class="card-preview" id="actual-card-preview"></div>
+    <p id="claim-warning" class="claim-warning hidden"></p>
+    <div class="claim-controls">
+      <div id="claim-color-picker" class="claim-color-picker"></div>
+    </div>
+    <div id="power-box" class="power-box hidden"></div>
+    <div class="claim-btns">
+      <button id="claim-cancel" class="btn btn-ghost" onclick="cancelPlay()" data-i18n="ui.cancel">Cancelar</button>
+      <button id="claim-play" class="btn btn-primary" onclick="confirmPlay()" data-i18n="g.playCard">Jugar carta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Wild +4: accept or challenge -->
+<div id="challenge-area" class="wild4-challenge-area hidden">
+  <div class="w4c-inner" id="challenge-content"></div>
+</div>
+
+<!-- Confirm / notice window -->
+<div id="draw-confirm-modal" class="draw-confirm-modal hidden">
+  <div id="draw-confirm-card" class="draw-confirm-card">
+    <div id="draw-confirm-icon" class="draw-confirm-icon"></div>
+    <h3 id="draw-confirm-title" class="draw-confirm-title"></h3>
+    <p id="draw-confirm-msg" class="draw-confirm-msg"></p>
+    <div class="draw-confirm-btns">
+      <button id="draw-confirm-cancel" class="btn btn-ghost">Cancelar</button>
+      <button id="draw-confirm-third" class="btn btn-ghost hidden">Terminar</button>
+      <button id="draw-confirm-ok" class="btn btn-secondary">Sí, robar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rules -->
+<div id="rules-modal" class="spotify-modal hidden" onclick="rulesBackdropClick(event)">
+  <div class="spotify-modal-card rules-modal-card">
+    <h3 class="spotify-modal-title" data-i18n="rules.title">📖 Reglas de ¡CAMALEÓN!</h3>
+    <div class="rules-body">
+      <h4 data-i18n="rules.goalT">Objetivo</h4>
+      <p data-i18n="rules.goal">Quedarte sin cartas antes que nadie. En tu turno juega UNA carta que coincida en <strong>color, número o símbolo</strong> con la de la mesa, o un comodín. Si no tienes, roba una: si sirve puedes jugarla al momento. También puedes robar en vez de jugar, aunque tengas una carta que sirva.</p>
+      <h4 data-i18n="rules.flexT">🦎 Cartas flex</h4>
+      <p data-i18n="rules.flex">Una carta flex tiene un lado normal (su color principal) y un <strong>lado flex</strong> (un segundo color en su base y la esquina 🦎). Se juega por su lado normal salvo que elijas el lado flex. El lado flex de una carta de <strong>número</strong> le deja coincidir por su color flex — pero el siguiente tiene que seguir su color <strong>normal</strong>.</p>
+      <h4 data-i18n="rules.powerT">⚡ Carta de Poder</h4>
+      <p data-i18n="rules.power">Todos empiezan con su Carta de Poder en <strong>verde</strong>. Solo en verde puedes jugar un lado flex, y al hacerlo pasa a <strong>rojo</strong>. Sigue en rojo hasta que: todas las Cartas de Poder están en rojo a la vez (todas vuelven a verde), juegas una carta de número con el icono <strong>🔄</strong> (DEBES voltear la tuya, de verde a rojo o de rojo a verde), o alguien juega un <strong>Comodín Voltea Todos</strong> (todos voltean la suya).</p>
+      <h4 data-i18n="rules.actionsT">Cartas de acción</h4>
+      <p data-i18n="rules.actions"><strong>Roba Dos</strong> el siguiente roba 2 y pierde su turno · <strong>Salto</strong> el siguiente pierde su turno · <strong>Reversa</strong> cambia el sentido (con 2 jugadores funciona como salto) · <strong>Comodín Voltea Todos</strong> todos voltean su Carta de Poder y tú eliges el color. Una carta de acción puede ir sobre otra del mismo color o símbolo.</p>
+      <h4 data-i18n="rules.flexActT">Lados flex</h4>
+      <p data-i18n="rules.flexAct"><strong>Roba Dos flex</strong> todos los demás roban 1; el siguiente sí juega · <strong>Salto flex</strong> SALTA A TODOS, el turno vuelve a ti · <strong>Reversa flex</strong> cambia el sentido y salta al primero en la nueva dirección · <strong>Comodín Diana +2 flex</strong> roba 2 el jugador que elijas · <strong>Comodín Todos Roban flex</strong> todos los demás roban 2; el siguiente sí juega · <strong>Comodín Roba Cuatro flex</strong> roba 4 el jugador que elijas. Por su lado normal, el Diana +2 y el Todos Roban son comodines normales. Después de un robo con diana, sigue el siguiente jugador.</p>
+      <h4 data-i18n="rules.chT">⚖️ Comodín Roba Cuatro</h4>
+      <p data-i18n="rules.ch">Por su lado normal va sobre cualquier carta, pero solo puedes jugarlo si NO tienes ninguna carta del color de la mesa (los comodines cuentan como coincidencia). El siguiente roba 4 y pierde su turno, o te desafía: si tenías coincidencia, robas TÚ 4 y él ninguna; si no, él roba 6 y pierde su turno. El color que elegiste se queda en ambos casos.</p>
+      <h4 data-i18n="rules.unoT">📣 ¡ÚLTIMA!</h4>
+      <p data-i18n="rules.uno">Cuando te quede una carta, grita <strong>¡ÚLTIMA!</strong>. Si alguien te pilla antes de que juegue el siguiente, robas 2.</p>
+      <h4 data-i18n="rules.ptsT">🏆 Puntos</h4>
+      <p data-i18n="rules.pts">Quien gana la ronda se lleva los puntos de las cartas de los demás: números (1–8) = su valor, cualquier carta de acción = 20, cualquier comodín = 50. En una partida, gana el primero en llegar a 500.</p>
+      <h4 data-i18n="rules.hereT">Cómo jugar aquí</h4>
+      <p data-i18n="rules.here">En tu turno las cartas que puedes jugar <strong>suben y brillan</strong>; las demás se oscurecen. Al tocar un comodín, o una carta flex con tu ⚡ en verde, se abre una ventana para elegir el color y el lado. Mantén pulsada una carta para verla en grande con su regla. Toca a otro jugador para lanzarle algo.</p>
+    </div>
+    <div class="spotify-modal-btns"><button class="btn btn-primary btn-sm" onclick="closeRules()" data-i18n="rules.ok">Entendido</button></div>
+  </div>
+</div>
+
+<!-- Voice toast -->
+<div id="voice-toast" class="voice-toast hidden"></div>
+
+<!-- Music Prompt -->
+<div id="music-prompt" class="music-prompt hidden">
+  <div class="music-prompt-card">
+    <div class="music-prompt-icon">🎵</div>
+    <h3 class="music-prompt-title" data-i18n="mp.title">¿Con música de fondo?</h3>
+    <p class="music-prompt-desc" data-i18n="mp.desc">Añade ambiente a la partida</p>
+    <div class="music-prompt-btns">
+      <button class="btn btn-primary" onclick="enableMusic()" data-i18n="mp.yes">Sí, con música</button>
+      <button class="btn btn-ghost" onclick="disableMusic()" data-i18n="mp.no">Sin música</button>
+    </div>
+  </div>
+</div>
+
+<!-- Spotify / Last.fm -->
+<div id="spotify-modal" class="spotify-modal hidden" onclick="spotifyModalBackdropClick(event)">
+  <div id="spotify-modal-card" class="spotify-modal-card"></div>
+</div>
+<div id="lastfm-modal" class="spotify-modal hidden" onclick="lastfmModalBackdropClick(event)">
+  <div id="lastfm-modal-card" class="spotify-modal-card lastfm-modal-card"></div>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="i18n.js?v=2"></script>
+<script src="engine.js?v=1"></script>
+<script src="fx.js?v=2"></script>
+<script src="look.js?v=5"></script>
+<script src="app.js?v=4"></script>
+<script src="extras.js?v=5"></script>
+<script src="tutorial.js?v=1"></script>
+<script>
+  // Install as an app: register the offline helper (network first, see sw.js)
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- ¡CAMALEÓN! app icon: a chameleon card (red / blue corner to corner) with a white
+       leaf and a curled chameleon tail, plus a charged ⚡ power token, on a rainforest sky -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b5e61d"/><stop offset=".35" stop-color="#14b8a6"/>
+      <stop offset=".7" stop-color="#0f5e8f"/><stop offset="1" stop-color="#2a0f55"/>
+    </linearGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E0322B"/><stop offset="1" stop-color="#1F63E0"/>
+    </linearGradient>
+    <radialGradient id="bolt" cx=".4" cy=".35" r=".7">
+      <stop offset="0" stop-color="#fbffd6"/><stop offset=".55" stop-color="#c6f432"/><stop offset="1" stop-color="#6a9a0c"/>
+    </radialGradient>
+    <clipPath id="cardclip"><rect x="146" y="86" width="220" height="340" rx="34"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <g transform="rotate(-10 256 256)">
+    <g clip-path="url(#cardclip)">
+      <rect x="146" y="86" width="220" height="340" fill="#E0322B"/>
+      <polygon points="366,86 366,426 146,426" fill="#1F63E0"/>
+    </g>
+    <rect x="146" y="86" width="220" height="340" rx="34" fill="none" stroke="#fff" stroke-width="14"/>
+    <!-- the leaf -->
+    <path d="M256 140 C340 150 342 268 300 330 C276 366 230 378 212 372 C172 362 168 250 190 214 C206 186 226 146 256 140 Z" fill="#fff"/>
+    <!-- the chameleon's curled tail -->
+    <path d="M232 336 C196 318 196 262 236 248 C272 236 300 262 290 292 C282 316 252 318 244 300 C238 286 250 272 264 278"
+          fill="none" stroke="url(#tail)" stroke-width="20" stroke-linecap="round"/>
+    <circle cx="268" cy="188" r="16" fill="url(#tail)"/><circle cx="273" cy="184" r="6" fill="#fff"/>
+  </g>
+  <!-- ⚡ power token -->
+  <circle cx="392" cy="122" r="58" fill="url(#bolt)" stroke="#fff" stroke-width="8"/>
+  <path d="M398 84 L366 130 H392 L382 162 L418 110 H392 Z" fill="#12301f"/>
+</svg>
