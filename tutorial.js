@@ -1,13 +1,13 @@
 // ============================================================
-// Guided first game (¡CAMALEÓN!)
+// Guided first game (UNO TEAMS)
 //
-// A short game on this device only, against "Profe Camaleón", with a fixed deck so every
-// lesson works:
-//   1 match the colour                        5 flex Skip → SKIP ALL (you play again)
-//   2 play a Draw Two                         6 Wild All Flip: everybody's Power Card flips
-//   3 a flex card: its flex colour matches    7 shout ¡ÚLTIMA!
-//     (your ⚡ Power Card turns red)            8 play your last card and win
-//   4 a 🔄 number card turns it green again
+// A short game on this device only: me and my bot partner "Compi" (team ⭐) against two
+// rivals (team 💗), with a fixed deck and scripted bot moves so every lesson works:
+//   1 pass a card to your partner (start)      6 Wild Team Draw Four: both rivals draw 2
+//   2 match the colour                          7 keep going (down to one card)
+//   3 a 🔁 passing-symbol card                  8 shout ¡UNO!
+//   4 …pick the card that goes to your partner  9 play your last card: you're out, and
+//   5 Wild Team Play: the turn jumps to Compi     Compi (1 card left) finishes for the team
 //
 // While LOCAL_GAME is on, mutateRoom() (app.js) sends every change to localMutate()
 // below instead of Firestore: the same rules engine runs on an in-memory room and the
@@ -16,25 +16,27 @@
 // ============================================================
 
 let LOCAL_GAME = false;
-const TUT_BOT = 'bot_profe', TUT_ME_FALLBACK = 'tut-me';
+const TUT_MATE = 'bot_compi', TUT_R1 = 'bot_rival1', TUT_R2 = 'bot_rival2', TUT_ME_FALLBACK = 'tut-me';
 
 addStrings({
   'tut.open':  ['🎓 ¿Primera vez? Aprende jugando (2 min)', '🎓 First time? Learn by playing (2 min)'],
-  'tut.bot':   ['Profe Camaleón', 'Prof. Chameleon'],
-  'tut.step':  ['Paso {n} de 8', 'Step {n} of 8'],
+  'tut.mate':  ['Compi', 'Buddy'], 'tut.r1': ['Rival Uno', 'Rival One'], 'tut.r2': ['Rival Dos', 'Rival Two'],
+  'tut.step':  ['Paso {n} de 9', 'Step {n} of 9'],
   'tut.skip':  ['Salir del tutorial', 'Leave tutorial'],
-  'tut.s1': ['Juega una carta que coincida en <b>color o número</b> con la de la mesa. Toca el <b>Rojo 5</b>.', 'Play a card that matches the table card\'s <b>colour or number</b>. Tap the <b>Red 5</b>.'],
-  'tut.s2': ['¡Ataca! El <b>Rojo Roba Dos</b> hace que el Profe robe 2 y pierda su turno. Tócalo.', 'Attack! The <b>Red Draw Two</b> makes the Prof draw 2 and lose his turn. Tap it.'],
-  'tut.s3': ['Tu <b>Azul 4</b> es una <b>🦎 carta flex</b>: su franja de abajo es roja. Con tu <b>⚡ Carta de Poder</b> en verde puedes jugar ese <b>lado flex</b> sobre el rojo. Tócala y elige <b>Lado flex</b>. Ojo: el siguiente seguirá con <b>azul</b>, y tu ⚡ pasará a rojo.', 'Your <b>Blue 4</b> is a <b>🦎 flex card</b>: its foot is red. With your <b>⚡ Power Card</b> green you may play that <b>flex side</b> on the red. Tap it and pick <b>Flex side</b>. Note: the next player follows <b>blue</b>, and your ⚡ turns red.'],
-  'tut.s4': ['Tu ⚡ está en rojo. El <b>Azul 2</b> tiene el icono <b>🔄</b>: al jugarlo, tu Carta de Poder se voltea… ¡de vuelta a verde! Tócalo.', 'Your ⚡ is red. The <b>Blue 2</b> has the <b>🔄</b> icon: playing it flips your Power Card… back to green! Tap it.'],
-  'tut.s5': ['El <b>Azul Salto</b> también es flex. Su lado flex es <b>⊘⊘ SALTA A TODOS</b>: el turno vuelve a ti. Tócalo y elige <b>Lado flex</b>.', 'The <b>Blue Skip</b> is flex too. Its flex side is <b>⊘⊘ SKIP ALL</b>: the turn comes back to you. Tap it and pick <b>Flex side</b>.'],
-  'tut.s6': ['El <b>Comodín Voltea Todos</b> voltea TODAS las Cartas de Poder: la tuya vuelve a verde y la del Profe pasa a rojo. Tócalo y elige <b>Amarillo</b>.', "The <b>Wild All Flip</b> flips EVERY Power Card: yours goes back to green and the Prof's turns red. Tap it and pick <b>Yellow</b>."],
-  'tut.s7': ['¡Te queda una carta! Grita <b>¡ÚLTIMA!</b> antes de que te pillen (si te pillan, robas 2).', 'One card left! Shout <b>LAST CARD!</b> before someone catches you (if they do, you draw 2).'],
-  'tut.s8': ['Juega tu última carta, el <b>Amarillo 1</b>, y gana.', 'Play your last card, the <b>Yellow 1</b>, and win.'],
-  'tut.wait':  ['Turno del Profe… mira lo que hace.', "The Prof's turn… watch what he does."],
-  'tut.doneT': ['¡Ganaste tu primera ronda!', 'You won your first round!'],
-  'tut.done':  ['Ya sabes lo básico. Aún te quedan sorpresas: los otros lados flex (<b>Roba Dos</b>: todos roban 1, <b>Reversa</b>: cambia y salta, los comodines <b>🎯 Diana</b> y <b>Todos Roban</b>), el <b>Comodín Roba Cuatro</b> y los <b>⚖️ desafíos</b>. Míralos en las reglas o mantén pulsada una carta.',
-                'You know the basics. More surprises are waiting: the other flex sides (<b>Draw Two</b>: everyone draws 1, <b>Reverse</b>: reverse and skip, the <b>🎯 Target</b> and <b>All Draw</b> wilds), the <b>Wild Draw Four</b> and <b>⚖️ challenges</b>. See the rules or hold a card.'],
+  'tut.s1': ['Juegas en equipo con <b>Compi</b>, que se sienta enfrente. Antes de empezar, todos pasan una carta a su compañero. Pásale el <b>Rojo 9</b>: a él le vendrá bien.', 'You play as a team with <b>Buddy</b>, sitting across from you. Before the start, everyone passes a card to their partner. Pass him the <b>Red 9</b>: he can use it.'],
+  'tut.s2': ['Juega una carta que coincida en <b>color o número</b> con la de la mesa. Toca el <b>Rojo 5</b>.', 'Play a card that matches the table card\'s <b>colour or number</b>. Tap the <b>Red 5</b>.'],
+  'tut.s3': ['El <b>Rojo 3</b> lleva el <b>🔁 símbolo de pase</b>: al jugarlo, tú y Compi os pasáis una carta. Tócalo.', 'The <b>Red 3</b> has the <b>🔁 passing symbol</b>: when you play it, you and Buddy pass each other a card. Tap it.'],
+  'tut.s4': ['Elige qué le pasas a Compi: el <b>Azul 3</b>.', 'Pick what you pass to Buddy: the <b>Blue 3</b>.'],
+  'tut.s5': ['El <b>🤝 Comodín Juego en Equipo</b> hace que el turno salte directamente a Compi. Si él no puede jugar, robas tú 2. Tócalo y elige <b>Azul</b>.', 'The <b>🤝 Wild Team Play</b> makes the turn jump straight to Buddy. If he can\'t play, you draw 2. Tap it and pick <b>Blue</b>.'],
+  'tut.s6': ['El <b>✌️ Comodín Equipo Roba Cuatro</b>: el siguiente roba 2 y pierde su turno, ¡y su compañero también roba 2! Tócalo y elige <b>Amarillo</b>.', 'The <b>✌️ Wild Team Draw Four</b>: the next player draws 2 and loses their turn, and their partner draws 2 too! Tap it and pick <b>Yellow</b>.'],
+  'tut.s7': ['Sigue: juega el <b>Amarillo 7</b> (la carta que te pasó Compi al principio).', 'Keep going: play the <b>Yellow 7</b> (the card Buddy passed you at the start).'],
+  'tut.s8': ['¡Te queda una carta! Grita <b>¡UNO!</b> antes de que te pillen (si te pillan, robas 2). Tu compañero también puede gritarlo por ti.', 'One card left! Shout <b>UNO!</b> before someone catches you (if they do, you draw 2). Your partner can shout it for you too.'],
+  'tut.s9': ['Juega tu última carta, el <b>Amarillo 4</b>. Como a Compi solo le queda 1, no te pasa la mitad: te quedas fuera y él termina por el equipo.', 'Play your last card, the <b>Yellow 4</b>. Buddy has just 1 card, so he doesn\'t pass you half: you stay out and he finishes for the team.'],
+  'tut.wait':  ['Turno de otro jugador… mira lo que hace.', "Another player's turn… watch what they do."],
+  'tut.out':   ['Estás fuera. Si Compi juega su última carta, ¡ganáis los dos!', "You're out. If Buddy plays his last card, you both win!"],
+  'tut.doneT': ['¡Tu equipo ganó la ronda!', 'Your team won the round!'],
+  'tut.done':  ['Ya sabes lo básico. Recuerda: si te quedas sin cartas y a tu compañero le quedan 2 o más, <b>te pasa la mitad</b>; y si estás fuera y él roba, <b>te vuelve a pasar la mitad</b>. Míralo en las reglas o mantén pulsada una carta.',
+                'You know the basics. Remember: if you go out and your partner has 2 or more cards, <b>they pass you half</b>; and if you\'re out and they draw, <b>they pass you half again</b>. See the rules or hold a card.'],
   'tut.again': ['Jugar contra bots', 'Play against bots'],
   'tut.home':  ['Volver al inicio', 'Back to start']
 });
@@ -62,28 +64,40 @@ function localMutate(fn) {
 }
 
 // ---------- The lesson's cards ----------
+// Seats go me · Rival Uno · Compi · Rival Dos. Every bot holds exactly the cards it
+// plays in the script below, in that order (plus spares it never needs).
 let _tid = 500;
-const tc = (c, v, extra = {}) => ({ id: _tid++, c, v, ...extra });     // classic / wild
-const tf = (c, c2, v) => ({ id: _tid++, c, c2, v, flex: true });        // flex card
-// my hand, in the order the lesson plays it
-const TUT_MINE = () => [
-  tc('red', '5'),                        // 1
-  tc('red', 'draw2'),                    // 2
-  tf('blue', 'red', '4'),                // 3  flex side: matches red, blue carries on
-  tc('blue', '2', { flip: true }),       // 4  🔄: my Power Card back to green
-  tf('blue', 'yellow', 'skip'),          // 5  flex side: skip all
-  tc('wild', 'wildFlip'),                // 6  → Yellow
-  tc('yellow', '1')                      // 8  (7 = shout)
-];
-const TUT_STEPS = [1, 2, 3, 4, 5, 6, 8];   // step shown while each of my cards is next
-// The Profe's hand is built so exactly one colour fits each time it's his turn
-const TUT_BOT_HAND = () => [
-  tc('red', '8'),                        // answers my Red 5
-  tc('blue', '6'), tc('blue', '8'),      // answer my Blue 4 and my Blue 2
-  tc('yellow', '3'),                     // answers my Wild All Flip (Yellow)
-  tc('green', '1'), tc('green', '7'), tc('green', '3')
-];
-let _tutMine = [];
+const tc = (c, v, extra = {}) => ({ id: _tid++, c, v, ...extra });
+let TUT = null;
+function buildTutorialDeck() {
+  _tid = 500;
+  const d = {
+    // me: Red 9 goes to Compi at the start, Blue 3 at the 🔁 swap
+    red9: tc('red', '9'), red5: tc('red', '5'), red3: tc('red', '3', { pass: true }), blue3: tc('blue', '3'),
+    teamPlay: tc('wild', 'teamPlay'), team4: tc('wild', 'team4'),
+    // Compi: Yellow 7 comes to me at the start, Yellow 4 at the swap
+    y7: tc('yellow', '7'), y4: tc('yellow', '4'), red1: tc('red', '1'), y8: tc('yellow', '8'), y2: tc('yellow', '2'), y1: tc('yellow', '1'),
+    // Rival Uno and Rival Dos (they swap their green spares at the start)
+    g5: tc('green', '5'), red2: tc('red', '2'), red8: tc('red', '8'), y9: tc('yellow', '9'), y6: tc('yellow', '6'),
+    g6: tc('green', '6'), red6: tc('red', '6'), red4: tc('red', '4'), blue6: tc('blue', '6'), y5: tc('yellow', '5'), y3: tc('yellow', '3')
+  };
+  d.hands = {
+    me: ['red9', 'red5', 'red3', 'blue3', 'teamPlay', 'team4'],
+    [TUT_MATE]: ['y7', 'y4', 'red1', 'y8', 'y2', 'y1'],
+    [TUT_R1]: ['g5', 'red2', 'red8', 'y9', 'y6'],
+    [TUT_R2]: ['g6', 'red6', 'red4', 'blue6', 'y5', 'y3']
+  };
+  // what each bot does: the cards it passes (in order) and plays (in order)
+  d.script = {
+    [TUT_MATE]: { give: ['y7', 'y4'], play: ['red9', 'red1', 'blue3', 'y8', 'y2', 'y1'] },
+    [TUT_R1]:   { give: ['g5'], play: ['red2', 'red8', 'y9', 'y6'] },
+    [TUT_R2]:   { give: ['g6'], play: ['red6', 'red4', 'blue6', 'y5', 'y3'] }
+  };
+  // my lessons: which card each step wants
+  d.mine = { 1: 'red9', 2: 'red5', 3: 'red3', 4: 'blue3', 5: 'teamPlay', 6: 'team4', 7: 'y7', 9: 'y4' };
+  d.playOrder = [2, 3, 5, 6, 7, 9];
+  return d;
+}
 
 function startTutorial() {
   closeRules();
@@ -93,18 +107,20 @@ function startTutorial() {
   const raw = document.getElementById('player-name').value.trim() || t('land.defaultName');
   localName = selectedEmoji ? `${selectedEmoji} ${raw}` : raw;
   currentRoomId = 'TUTORIAL';
-  _tid = 500;
-  _tutMine = TUT_MINE();
+  TUT = buildTutorialDeck();
   const st = Engine.newRound([
-    { id: me, name: localName },
-    { id: TUT_BOT, name: `🦎 ${t('tut.bot')}`, isBot: true, persona: 'balanced' }
+    { id: me, name: localName, team: 'A' },
+    { id: TUT_R1, name: `😈 ${t('tut.r1')}`, isBot: true, persona: 'balanced', team: 'B' },
+    { id: TUT_MATE, name: `🤝 ${t('tut.mate')}`, isBot: true, persona: 'teamer', team: 'A' },
+    { id: TUT_R2, name: `👿 ${t('tut.r2')}`, isBot: true, persona: 'balanced', team: 'B' }
   ], { matchTarget: 0 });
-  st.hands = { [me]: tutClone(_tutMine), [TUT_BOT]: TUT_BOT_HAND() };
-  st.discard = [tc('red', '3')];
-  st.topColor = 'red'; st.topValue = '3';
-  // the 2 cards from my Draw Two come first (they never fit when the Profe has to play)
-  st.drawPile = [tc('green', '6'), tc('green', '7'), ...Array.from({ length: 30 }, (_, i) =>
-    tc(['green', 'yellow', 'blue', 'red'][i % 4], String(1 + i % 8)))];
+  const cards = ids => ids.map(k => tutClone(TUT[k]));
+  st.hands = { [me]: cards(TUT.hands.me) };
+  for (const id of [TUT_MATE, TUT_R1, TUT_R2]) st.hands[id] = cards(TUT.hands[id]);
+  st.discard = [tc('red', '7')];
+  st.topColor = 'red'; st.topValue = '7';
+  // the 4 cards from the Team Draw Four come first; none of them is ever needed
+  st.drawPile = Array.from({ length: 30 }, (_, i) => tc(['green', 'blue', 'green', 'blue'][i % 4], String(1 + i % 9)));
   st.players = st.players.map(p => ({ ...p, cardCount: st.hands[p.id].length }));
   st.currentPlayerIndex = 0;
   st.log = [];
@@ -118,36 +134,31 @@ function startTutorial() {
 // Which lesson we're on, read from the game itself
 function tutorialStep(state) {
   const me = localUid;
-  if (state.uno?.pid === me) return 7;
+  if (!TUT || state.status !== 'playing') return 0;
+  if ((state.uno || []).some(u => u.pid === me)) return 8;
+  const ph = state.phase;
+  if (ph?.k === 'swap' && Engine.waitingFor(state).includes(me)) return ph.why === 'start' ? 1 : 4;
   if (!isMyTurn(state)) return 0;
   const hand = state.hands?.[me] || [];
-  const k = _tutMine.findIndex(c => hand.some(h => h.id === c.id));
-  return k >= 0 ? TUT_STEPS[k] : 0;
+  return TUT.playOrder.find(step => hand.some(c => c.id === TUT[TUT.mine[step]].id)) || 0;
 }
 function tutorialWantId(step) {
-  const k = TUT_STEPS.indexOf(step);
-  return k >= 0 ? _tutMine[k].id : null;
+  return TUT && TUT.mine[step] ? TUT[TUT.mine[step]].id : null;
 }
 function tutorialAllowsCard(card) { return card.id === tutorialWantId(tutorialStep(roomState)); }
 function tutorialAllowsDraw() { return false; }
 function tutorialAllowsShout(kind) { return kind === 'shout'; }
 
-// What each lesson wants from the play window: the side (shown already picked) and the colour.
-// Whatever is tapped, the move is steered to this so the lesson can go on.
-const TUT_PLAY = { 3: { flex: true }, 5: { flex: true }, 6: { color: 'yellow' } };
+// What each lesson wants from the colour window (shown already picked). Whatever is
+// tapped, the move is steered to this so the lesson can go on.
+const TUT_PLAY = { 5: { color: 'blue' }, 6: { color: 'yellow' } };
 function tutorialPresetPlay(pick) {
   const want = TUT_PLAY[tutorialStep(roomState)];
-  if (!want) return;
-  if (want.flex) pick.flex = true;
-  if (want.color) pick.color = want.color;
+  if (want?.color) pick.color = want.color;
 }
 function tutorialFixMove(move) {
   const want = TUT_PLAY[tutorialStep(roomState)];
-  if (!want) return move;
-  const out = { ...move };
-  if (want.flex) out.flex = true;
-  if (want.color) out.color = want.color;
-  return out;
+  return want?.color ? { ...move, color: want.color } : move;
 }
 
 function tutorialRender(state) {
@@ -159,24 +170,42 @@ function tutorialRender(state) {
     document.querySelector('.hand-area')?.before(coach);
   }
   const step = tutorialStep(state);
+  const out = !(state.hands?.[localUid] || []).length;
   coach.innerHTML = `
     <div class="coach-head"><span class="coach-step">${step ? t('tut.step', { n: step }) : ''}</span>
       <button type="button" class="link-btn coach-skip" onclick="endTutorial()">${t('tut.skip')}</button></div>
-    <div class="coach-text">${step ? t('tut.s' + step) : t('tut.wait')}</div>`;
+    <div class="coach-text">${step ? t('tut.s' + step) : out ? t('tut.out') : t('tut.wait')}</div>`;
   coach.classList.toggle('waiting', !step);
+  // the wanted card pulses, in the hand and in the pass window
   const want = tutorialWantId(step);
-  document.querySelectorAll('#player-hand .card[data-id]').forEach(el => {
+  document.querySelectorAll('#player-hand .card[data-id], .pass-hand .card[data-id]').forEach(el => {
     el.classList.toggle('coach-pulse', +el.dataset.id === want);
   });
 }
 
-// The Profe plays whatever fits (his hand is built so the fitting card is the scripted
-// one); called from doBotTick instead of the normal bot brain
+// The bots follow the script; called from doBotTick instead of the normal bot brain
 async function tutorialBotTick(state) {
-  if (state.status !== 'playing' || whoActs(state) !== TUT_BOT) return;
-  if (state.uno?.pid === localUid) return;   // waiting for me to shout first
-  const move = Engine.botMove(state, TUT_BOT, 'balanced', { fair: true, challenge: 0 });
-  if (move) await sendMove(move, TUT_BOT);
+  if (state.status !== 'playing' || !TUT) return;
+  // a bot down to one card shouts for itself
+  const loud = (state.uno || []).find(u => u.pid !== localUid);
+  if (loud) { await sendMove({ t: 'shout' }, loud.pid); return; }
+  if ((state.uno || []).some(u => u.pid === localUid)) return;   // waiting for me to shout first
+  const botId = Engine.waitingFor(state).find(id => isBot(id));
+  if (!botId) return;
+  const hand = state.hands[botId] || [];
+  const plan = TUT.script[botId];
+  const has = k => hand.find(c => c.id === TUT[k].id);
+  let move = null;
+  if (state.phase?.k === 'swap') {
+    const k = plan.give.find(has);
+    move = { t: 'swap', id: k ? TUT[k].id : hand[0]?.id };
+  } else if (state.phase?.k === 'give') {
+    move = { t: 'give', ids: Engine.givePick(hand, state.phase.n) };
+  } else {
+    const k = plan.play.find(k => has(k) && Engine.isPlayable(TUT[k], state));
+    move = k ? { t: 'play', id: TUT[k].id } : Engine.botMove(state, botId, 'balanced', {});
+  }
+  if (move) await sendMove(move, botId);
 }
 
 function tutorialOutro() {
@@ -198,13 +227,14 @@ function tutorialOutro() {
     </div>
   </div>`;
   m.classList.remove('hidden');
-  try { localStorage.setItem('camaleonTutorialDone', '1'); } catch (_) {}
+  try { localStorage.setItem('unoteamsTutorialDone', '1'); } catch (_) {}
   updateTutorialLink();
 }
 
 function endTutorial() {
   LOCAL_GAME = false;
   LocalRoom.data = null;
+  TUT = null;
   if (localUid === TUT_ME_FALLBACK) localUid = auth.currentUser?.uid || null;
   _celebrated = null;
   roomState = null;
@@ -223,7 +253,7 @@ function updateTutorialLink() {
   if (!el) return;
   el.innerHTML = t('tut.open');
   let seen = false;
-  try { seen = !!localStorage.getItem('camaleonTutorialDone') || loadMyStats().games > 0; } catch (_) {}
+  try { seen = !!localStorage.getItem('unoteamsTutorialDone') || loadMyStats().games > 0; } catch (_) {}
   el.classList.toggle('first-time', !seen);
 }
 document.addEventListener('langchange', updateTutorialLink);

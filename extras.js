@@ -1,5 +1,5 @@
 // ============================================================
-// EXTRAS — everything on top of the basic game (¡CAMALEÓN!)
+// EXTRAS — everything on top of the basic game (UNO TEAMS)
 //
 // Loaded after app.js; it uses app.js globals (roomState, localUid, db, FX, t…).
 // app.js calls into here through a few hooks, all guarded with `typeof`:
@@ -66,16 +66,16 @@ function seatFaceHTML(state, p) {
 
 addStrings({
   'turn.yours': ['¡Tu turno!', 'Your turn!'], 'turn.yoursSub': ['Elige una carta o roba', 'Pick a card or draw'],
-  'turn.decide': ['¡Te toca decidir!', 'Your call!'], 'turn.decideSub': ['¿Aceptar o desafiar?', 'Accept or challenge?'],
+  'turn.decide': ['🔁 ¡Pasa cartas!', '🔁 Pass cards!'], 'turn.decideSub': ['Elige qué le das a tu compañero', 'Pick what goes to your partner'],
   'danger.other': ['¡{name} está a 2 cartas!', '{name} is 2 cards away!'], 'danger.otherSub': ['¡Que no se escape!', "Don't let them get away!"],
-  'danger.me': ['¡Te quedan 2 cartas!', 'You have 2 cards left!'], 'danger.meSub': ['No olvides gritar ¡ÚLTIMA!', "Don't forget to shout LAST CARD"],
+  'danger.me': ['¡Te quedan 2 cartas!', 'You have 2 cards left!'], 'danger.meSub': ['No olvides gritar ¡UNO!', "Don't forget to shout UNO"],
   'timer.label': ['Tiempo por turno', 'Time per turn'], 'timer.off': ['Sin límite', 'No limit'], 'timer.s': ['{n} s', '{n} s'],
-  'timer.desc': ['Si se acaba: robas 1 y pasas. Ante un Comodín Roba Cuatro, lo aceptas.',
-                 'When time runs out you draw 1 and pass. Facing a Wild Draw Four, you accept it.'],
+  'timer.desc': ['Si se acaba: robas 1 y pasas. Si tenías que pasar cartas, se eligen por ti.',
+                 'When time runs out you draw 1 and pass. If you had to pass cards, they are picked for you.'],
   'badge.ok': ['Jugable', 'Playable'], 'badge.no': ['No se puede', "Can't play"],
   'match.label': ['Duración', 'Length'], 'match.round': ['Una ronda', 'One round'], 'match.match': ['Partida a 500', 'Match to 500'],
-  'match.roundDesc': ['Gana quien se quede sin cartas primero.', 'Whoever runs out of cards first wins.'],
-  'match.matchDesc': ['Varias rondas: quien gana una ronda suma las cartas de los demás. Gana el primero en llegar a 500 puntos.', "Several rounds: each round's winner scores everyone else's cards. First to 500 points wins."]
+  'match.roundDesc': ['Gana el primer equipo que se quede sin cartas.', 'The first team to run out of cards wins.'],
+  'match.matchDesc': ['Varias rondas: el equipo que gana una ronda suma las cartas de los otros equipos. Gana el primero en llegar a 500 puntos.', "Several rounds: the team that wins a round scores the other teams' cards. First team to 500 points wins."]
 });
 
 let _wasMyTurn = null, _countSeen = {}, _myMaxCards = 0;
@@ -84,7 +84,7 @@ const myTurnNow = s => whoActs(s) === localUid;
 function afterGameRender(state, firstDraw) {
   const myTurn = myTurnNow(state);
   if (!firstDraw && myTurn && _wasMyTurn === false) {
-    const deciding = state.phase?.k === 'challenge';
+    const deciding = !!state.phase;   // it's a card pass, not a turn
     FX.enqueue(async () => {
       if (!myTurnNow(roomState)) return;
       FX.play('turn');
@@ -100,9 +100,10 @@ function afterGameRender(state, firstDraw) {
   _wasMyTurn = myTurn;
   for (const p of state.players) {
     const before = _countSeen[p.id];
-    if (!firstDraw && before !== undefined && before > 2 && p.cardCount === 2) {
+    if (!firstDraw && state.status === 'playing' && before !== undefined && before > 2 && p.cardCount === 2) {
       const me = p.id === localUid, name = p.name;
       FX.enqueue(async () => {
+        if (roomState?.status !== 'playing') return;   // the round ended meanwhile: no banner over the results
         FX.play('danger');
         if (!me) FX.buzz([40, 60, 40]);
         await FX.banner(me ? t('danger.me') : t('danger.other', { name }), me ? t('danger.meSub') : t('danger.otherSub'), 'danger', 1100);
@@ -257,25 +258,18 @@ async function showNotice(icon, title, msg) {
 
 addStrings({
   'zoom.number': ['Carta de número: juégala si coincide en color o número.', 'Number card: play it if it matches the colour or number.'],
-  'zoom.flip':   ['🔄 Al jugarla, tu Carta de Poder se voltea (verde ↔ rojo).', '🔄 Playing it flips your Power Card (green ↔ red).'],
+  'zoom.pass':   ['🔁 Símbolo de pase: al jugarla, tú y tu compañero os pasáis una carta.', '🔁 Passing symbol: when you play it, you and your partner pass each other a card.'],
   'zoom.draw2':  ['Roba Dos: el siguiente roba 2 y pierde su turno.', 'Draw Two: the next player draws 2 and loses their turn.'],
   'zoom.skip':   ['Salto: el siguiente pierde su turno.', 'Skip: the next player loses their turn.'],
-  'zoom.reverse':['Reversa: cambia el sentido (con 2 jugadores, vuelves a jugar).', 'Reverse: changes direction (with 2 players you play again).'],
-  'zoom.wildFlip':['Comodín Voltea Todos: todos voltean su Carta de Poder y tú eliges el color.', "Wild All Flip: everyone flips their Power Card and you pick the colour."],
-  'zoom.wildTarget2':['Comodín Diana +2: por su lado normal es un comodín (eliges color).', 'Wild Target Draw 2: on its normal side it is a wild (pick a colour).'],
-  'zoom.wildAllDraw':['Comodín Todos Roban: por su lado normal es un comodín (eliges color).', 'Wild All Draw: on its normal side it is a wild (pick a colour).'],
-  'zoom.wild4':  ['Comodín Roba Cuatro: el siguiente roba 4 y pierde su turno. Solo puedes jugarlo sin cartas del color ni comodines (te pueden desafiar).', 'Wild Draw Four: the next player draws 4 and loses their turn. Only allowed with no card of the colour and no wild (you can be challenged).'],
-  'zoom.flex':   ['🦎 Lado flex (con tu ⚡ en verde): {why}', '🦎 Flex side (with your ⚡ green): {why}'],
+  'zoom.reverse':['Reversa: cambia el sentido (si solo quedan 2 jugadores, vuelves a jugar).', 'Reverse: changes direction (with only 2 players left you play again).'],
+  'zoom.wild':   ['Comodín: va sobre cualquier carta y eliges el color.', 'Wild: goes on anything and you pick the colour.'],
+  'zoom.teamPlay':['Comodín Juego en Equipo: eliges color y el turno salta a tu compañero. Si no puede jugar, robas tú 2.', "Wild Team Play: pick a colour and the turn jumps to your partner. If they can't play, you draw 2."],
+  'zoom.team4':  ['Comodín Equipo Roba Cuatro: el siguiente roba 2 y pierde su turno, y su compañero roba 2. Eliges color.', 'Wild Team Draw Four: the next player draws 2 and loses their turn, and their partner draws 2. You pick the colour.'],
   'zoom.points': ['Vale {n} puntos', 'Worth {n} points']
 });
 function zoomText(card) {
   let rule = esc(t('zoom.' + (isNumber(card.v) ? 'number' : card.v)));
-  if (card.flip) rule += '<br>' + esc(t('zoom.flip'));
-  if (card.flex) {
-    const why = t('side.flex.' + (isNumber(card.v) ? 'number' : card.v), {
-      color: card.c2 ? t('color.' + card.c2) : '', keep: t('color.' + card.c) });
-    rule += '<br>' + esc(t('zoom.flex', { why }));
-  }
+  if (card.pass) rule += '<br>' + esc(t('zoom.pass'));
   return `${rule} <small>${esc(t('zoom.points', { n: Engine.cardPoints(card) }))}</small>`;
 }
 let _zoomEl = null, _zoomTimer = null, _zoomSwallowClick = false;
@@ -408,48 +402,48 @@ document.addEventListener('langchange', () => {
 });
 
 // ============================================================
-// Match awards + room score · winner celebration · my stats and badges (this device)
+/// Match awards + room score · winner celebration · my stats and badges (this device)
 // ============================================================
 
 addStrings({
   'win.series': ['Marcador de la sala', 'Room score'], 'win.awards': ['Premios de la ronda', 'Round awards'],
   'win.newBadge': ['¡Nueva insignia!', 'New badge!'],
-  'aw.flexer': ['Camaleón', 'Chameleon'], 'aw.flexerWhy': ['usó {n} lados flex', 'used {n} flex sides'],
-  'aw.sniper': ['Francotirador', 'Sniper'], 'aw.sniperWhy': ['acertó {n} dianas', 'hit {n} targets'],
-  'aw.flipper': ['Volteador', 'Flipper'], 'aw.flipperWhy': ['jugó {n} Voltea Todos', 'played {n} Wild All Flips'],
+  'aw.teamer': ['Buen compañero', 'Team player'], 'aw.teamerWhy': ['cedió el turno {n} veces', 'handed over the turn {n} times'],
+  'aw.double': ['Doble golpe', 'Double hit'], 'aw.doubleWhy': ['jugó {n} Equipo Roba Cuatro', 'played {n} Team Draw Fours'],
+  'aw.generous': ['Generoso', 'Generous'], 'aw.generousWhy': ['pasó {n} cartas a su compañero', 'passed {n} cards to their partner'],
+  'aw.guardian': ['Ángel de la guarda', 'Guardian angel'], 'aw.guardianWhy': ['gritó ¡UNO! por su compañero {n} veces', 'shouted UNO for their partner {n} times'],
   'aw.punisher': ['Castigador', 'Punisher'], 'aw.punisherWhy': ['hizo robar {n} cartas', 'made others draw {n} cards'],
   'aw.collector': ['Coleccionista', 'Card collector'], 'aw.collectorWhy': ['tuvo que robar {n} cartas', 'had to draw {n} cards'],
   'aw.hunter': ['Cazador', 'Hunter'], 'aw.hunterWhy': ['pilló {n} veces a alguien sin gritar', 'caught someone not shouting {n} times'],
-  'aw.lawyer': ['Abogado', 'Lawyer'], 'aw.lawyerWhy': ['ganó {n} desafíos', 'won {n} challenges'],
   'aw.gate': ['Portero', 'Gatekeeper'], 'aw.gateWhy': ['hizo perder {n} turnos', 'made others lose {n} turns'],
   'stats.open': ['Tus estadísticas e insignias', 'Your stats and badges'], 'stats.title': ['Tus estadísticas', 'Your stats'],
   'stats.games': ['Rondas', 'Rounds'], 'stats.wins': ['Victorias', 'Wins'], 'stats.rate': ['% victorias', 'Win rate'],
-  'stats.streak': ['Mejor racha', 'Best streak'], 'stats.flexes': ['Lados flex', 'Flex sides'],
-  'stats.taken': ['Cartas de castigo', 'Penalty cards'], 'stats.catches': ['Pillados', 'Catches'], 'stats.chWon': ['Desafíos ganados', 'Challenges won'],
+  'stats.streak': ['Mejor racha', 'Best streak'], 'stats.teamPlays': ['Turnos cedidos', 'Turns handed over'],
+  'stats.gave': ['Cartas pasadas', 'Cards passed'], 'stats.taken': ['Cartas de castigo', 'Penalty cards'], 'stats.catches': ['Pillados', 'Catches'],
   'stats.badges': ['Insignias', 'Badges'], 'stats.local': ['Se guardan en este dispositivo.', 'Saved on this device.'],
   'stats.close': ['Cerrar', 'Close'], 'stats.none': ['Juega una partida para empezar.', 'Play a game to get started.'],
-  'b.first': ['Primera victoria', 'First win'], 'b.firstWhy': ['Gana una ronda', 'Win a round'],
-  'b.flexer': ['Maestro camaleón', 'Chameleon master'], 'b.flexerWhy': ['Gana una ronda usando 3 lados flex o más', 'Win a round using 3 or more flex sides'],
-  'b.skipAll': ['Solo yo', 'Party of one'], 'b.skipAllWhy': ['Salta a todos con un Salto flex', 'Skip everyone with a flex Skip'],
-  'b.sniper': ['Francotirador', 'Sniper'], 'b.sniperWhy': ['Haz robar 4 con un Roba Cuatro flex', 'Make someone draw 4 with a flex Wild Draw Four'],
-  'b.flexFinish': ['Final flex', 'Flex finish'], 'b.flexFinishWhy': ['Gana la ronda con un lado flex', 'Win the round with a flex side'],
-  'b.lawyer': ['Abogado', 'Lawyer'], 'b.lawyerWhy': ['Gana un desafío', 'Win a challenge'],
+  'b.first': ['Primera victoria', 'First win'], 'b.firstWhy': ['Gana una ronda con tu equipo', 'Win a round with your team'],
+  'b.assist': ['Pase perfecto', 'Perfect pass'], 'b.assistWhy': ['Tu compañero juega tras tu Juego en Equipo', 'Your partner plays after your Team Play'],
+  'b.double': ['Doble golpe', 'Double hit'], 'b.doubleWhy': ['Juega un Comodín Equipo Roba Cuatro', 'Play a Wild Team Draw Four'],
+  'b.guardian': ['Ángel de la guarda', 'Guardian angel'], 'b.guardianWhy': ['Grita ¡UNO! por tu compañero', 'Shout UNO for your partner'],
+  'b.tagBack': ['¡Vuelve!', 'Tag, you\'re in!'], 'b.tagBackWhy': ['Devuelve al juego a tu compañero', 'Bring your partner back into the game'],
+  'b.firstOut': ['Abre camino', 'Trailblazer'], 'b.firstOutWhy': ['Quédate sin cartas en una ronda que gana tu equipo', 'Go out in a round your team wins'],
   'b.untouched': ['Intocable', 'Untouchable'], 'b.untouchedWhy': ['Gana sin robar ni una carta de castigo', 'Win without drawing a single penalty card'],
   'b.comeback': ['Remontada', 'Comeback'], 'b.comebackWhy': ['Gana después de tener 12 cartas o más', 'Win after holding 12 or more cards'],
-  'b.hunter': ['Cazador', 'Hunter'], 'b.hunterWhy': ['Pilla a alguien que no gritó ¡ÚLTIMA!', 'Catch someone who didn\'t shout LAST CARD'],
+  'b.hunter': ['Cazador', 'Hunter'], 'b.hunterWhy': ['Pilla a alguien que no gritó ¡UNO!', 'Catch someone who didn\'t shout UNO'],
   'b.champion': ['Campeón', 'Champion'], 'b.championWhy': ['Gana una partida a 500', 'Win a match to 500'],
   'b.streak': ['Racha de 3', 'Hat trick'], 'b.streakWhy': ['Gana 3 rondas seguidas', 'Win 3 rounds in a row'],
   'b.veteran': ['Veterano', 'Veteran'], 'b.veteranWhy': ['Juega 10 rondas', 'Play 10 rounds'],
   'b.legend': ['Leyenda', 'Legend'], 'b.legendWhy': ['Gana 10 rondas', 'Win 10 rounds']
 });
 
-// The engine counts the stats itself; this only remembers two moments for badges:
-// a flex Skip All of mine and a flex Wild Draw Four of mine
+// The engine counts the stats itself; this only remembers moments for badges:
+// I brought my partner back in, I went out
 let _moments = {};
 function onFxEvents(evs) {
   for (const e of evs) {
-    if (e.t === 'skipAll' && e.pid === localUid) _moments.skipAll = true;
-    if (e.t === 'target' && e.pid === localUid && e.n === 4) _moments.sniper = true;
+    if (e.t === 'give' && e.why === 'tag' && e.from === localUid) _moments.tagBack = true;
+    if (e.t === 'out' && e.pid === localUid) _moments.wentOut = true;
   }
 }
 
@@ -465,14 +459,14 @@ function saveSeriesOnEnd(state) {
     .catch(() => {});
 }
 const AWARDS = [
-  { id: 'flexer',    icon: '🦎', stat: 'flexes',        min: 2 },
-  { id: 'sniper',    icon: '🎯', stat: 'targets',       min: 1 },
-  { id: 'flipper',   icon: '⚡', stat: 'allFlips',      min: 2 },
-  { id: 'punisher',  icon: '💥', stat: 'dealt',         min: 6 },
-  { id: 'collector', icon: '🃏', stat: 'taken',         min: 6 },
-  { id: 'gate',      icon: '⊘',  stat: 'skips',         min: 3 },
-  { id: 'hunter',    icon: '📣', stat: 'catches',       min: 1 },
-  { id: 'lawyer',    icon: '⚖️', stat: 'challengesWon', min: 1 }
+  { id: 'teamer',    icon: '🤝', stat: 'teamPlays',  min: 2 },
+  { id: 'double',    icon: '✌️', stat: 'team4s',     min: 1 },
+  { id: 'generous',  icon: '🎁', stat: 'gave',       min: 4 },
+  { id: 'guardian',  icon: '😇', stat: 'mateShouts', min: 1 },
+  { id: 'punisher',  icon: '💥', stat: 'dealt',      min: 6 },
+  { id: 'collector', icon: '🃏', stat: 'taken',      min: 6 },
+  { id: 'gate',      icon: '⊘',  stat: 'skips',      min: 3 },
+  { id: 'hunter',    icon: '📣', stat: 'catches',    min: 1 }
 ];
 function matchAwards(state) {
   const stats = state.stats || {};
@@ -488,14 +482,14 @@ function matchAwards(state) {
   return out;
 }
 
-const MY_STATS_KEY = 'camaleonMyStats';
+const MY_STATS_KEY = 'unoteamsMyStats';
 const BADGES = [
   { id: 'first',     icon: '🏆', test: c => c.won },
-  { id: 'flexer',    icon: '🦎', test: c => c.won && (c.ms.flexes || 0) >= 3 },
-  { id: 'skipAll',   icon: '⊘',  test: c => c.moments.skipAll },
-  { id: 'sniper',    icon: '🎯', test: c => c.moments.sniper },
-  { id: 'flexFinish',icon: '✨', test: c => c.won && c.flexFinish },
-  { id: 'lawyer',    icon: '⚖️', test: c => (c.ms.challengesWon || 0) >= 1 },
+  { id: 'assist',    icon: '🤝', test: c => (c.ms.teamPlayHit || 0) >= 1 },
+  { id: 'double',    icon: '✌️', test: c => (c.ms.team4s || 0) >= 1 },
+  { id: 'guardian',  icon: '😇', test: c => (c.ms.mateShouts || 0) >= 1 },
+  { id: 'tagBack',   icon: '🙌', test: c => c.moments.tagBack },
+  { id: 'firstOut',  icon: '🏃', test: c => c.won && c.moments.wentOut },
   { id: 'untouched', icon: '🛡️', test: c => c.won && !(c.ms.taken || 0) },
   { id: 'comeback',  icon: '🚀', test: c => c.won && c.maxCards >= 12 },
   { id: 'hunter',    icon: '📣', test: c => (c.ms.catches || 0) >= 1 },
@@ -505,7 +499,7 @@ const BADGES = [
   { id: 'legend',    icon: '💫', test: c => c.s.wins >= 10 }
 ];
 function loadMyStats() {
-  const base = { games: 0, wins: 0, streak: 0, best: 0, flexes: 0, taken: 0, catches: 0, chWon: 0, badges: {}, recorded: [] };
+  const base = { games: 0, wins: 0, streak: 0, best: 0, teamPlays: 0, gave: 0, taken: 0, catches: 0, badges: {}, recorded: [] };
   try { return Object.assign(base, JSON.parse(localStorage.getItem(MY_STATS_KEY) || '{}')); } catch (_) { return base; }
 }
 function saveMyStats(s) { try { localStorage.setItem(MY_STATS_KEY, JSON.stringify(s)); } catch (_) {} }
@@ -514,15 +508,13 @@ function recordMyGame(state, gameKey) {
   const s = loadMyStats();
   if (s.recorded.includes(gameKey)) return [];
   s.recorded = [...s.recorded, gameKey].slice(-40);
-  const won = state.winner === localUid;
+  const won = (state.winnerIds || []).includes(localUid);
   const ms = state.stats?.[localUid] || {};
   s.games++;
   if (won) { s.wins++; s.streak++; s.best = Math.max(s.best, s.streak); } else s.streak = 0;
-  s.flexes += ms.flexes || 0; s.taken += ms.taken || 0; s.catches += ms.catches || 0; s.chWon += ms.challengesWon || 0;
-  // the last move's events: did I go out on a flex side?
-  const lastEvs = state.ev?.list || [];
-  const flexFinish = won && lastEvs.some(e => e.t === 'play' && e.flex && e.pid === localUid);
-  const ctx = { s, won, ms, maxCards: _myMaxCards, flexFinish, moments: _moments, champion: state.matchWinner === localUid };
+  s.teamPlays += ms.teamPlays || 0; s.gave += ms.gave || 0; s.taken += ms.taken || 0; s.catches += ms.catches || 0;
+  const mine = state.players.find(p => p.id === localUid)?.team;
+  const ctx = { s, won, ms, maxCards: _myMaxCards, moments: _moments, champion: !!mine && state.matchWinner === mine };
   const fresh = BADGES.filter(b => !s.badges[b.id] && b.test(ctx));
   for (const b of fresh) s.badges[b.id] = new Date().toISOString().slice(0, 10);
   saveMyStats(s);
@@ -538,8 +530,8 @@ function confetti(ms = 3500, count = 170) {
   FX.layer().appendChild(cv);
   const g = cv.getContext('2d');
   g.scale(devicePixelRatio, devicePixelRatio);
-  // confetti in the four card colours
-  const cols = Object.values(CARD_HEX).concat('#ffffff');
+  // confetti in the four card colours + the fiesta gold and pink
+  const cols = Object.values(CARD_HEX).concat('#ffffff', '#ffd54a', '#ff4f9a');
   const bits = Array.from({ length: count }, () => ({
     x: Math.random() * innerWidth, y: -20 - Math.random() * innerHeight * .6,
     vx: (Math.random() - .5) * 2.4, vy: 2 + Math.random() * 3.2, r: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
@@ -586,13 +578,13 @@ function afterWinnerRender(state) {
   const gameKey = `${currentRoomId}|${state.gameNo || 0}|${state.roundNo || 0}|${state.winner}`;
   if (_celebrated === gameKey) return;
   _celebrated = gameKey;
-  const won = state.winner === localUid;
+  const won = (state.winnerIds || []).includes(localUid);
   FX.play(won ? 'win' : 'lose');
   if (won) FX.buzz([60, 40, 60, 40, 160]);
   confetti(won ? 4200 : 2600, won ? 200 : 90);
   setTimeout(() => {
     const fresh = recordMyGame(roomState || state, gameKey);
-    fresh.forEach((b, i) => setTimeout(() => badgeToast(b), 600 + i * 1600));
+    fresh.forEach((b, i) => setTimeout(() => badgeToast(b), 600 + i * 3900));   // one at a time
     updateStatsLink();
   }, 1200);
 }
@@ -621,7 +613,7 @@ function openMyStats() {
     <h3 class="spotify-modal-title">🏅 ${t('stats.title')}</h3>
     ${s.games ? '' : `<p class="spotify-modal-desc">${t('stats.none')}</p>`}
     <div class="st-grid">${tile('games', s.games)}${tile('wins', s.wins)}${tile('rate', rate)}${tile('streak', s.best)}
-      ${tile('flexes', s.flexes)}${tile('taken', s.taken)}${tile('catches', s.catches)}${tile('chWon', s.chWon)}</div>
+      ${tile('teamPlays', s.teamPlays)}${tile('gave', s.gave)}${tile('taken', s.taken)}${tile('catches', s.catches)}</div>
     <div class="mode-label" style="align-self:flex-start">${t('stats.badges')} · ${Object.keys(s.badges).length}/${BADGES.length}</div>
     <div class="badge-grid">${BADGES.map(b => `<div class="badge ${s.badges[b.id] ? 'got' : 'locked'}">
       <span class="badge-icon">${b.icon}</span><b>${t('b.' + b.id)}</b><span>${t('b.' + b.id + 'Why')}</span></div>`).join('')}</div>
@@ -748,9 +740,9 @@ addStrings({
   'land.bots': ['Jugar contra bots', 'Play against bots'], 'land.defaultName': ['Jugador', 'Player'],
   'bots.level': ['Nivel de los bots', 'Bot level'],
   'bots.easy': ['Fácil', 'Easy'], 'bots.normal': ['Normal', 'Normal'], 'bots.hard': ['Difícil', 'Hard'],
-  'bots.easyDesc': ['Juegan cualquier carta, tardan en gritar ¡ÚLTIMA! y casi nunca te pillan.', 'They play any card, are slow to shout LAST CARD and rarely catch you.'],
+  'bots.easyDesc': ['Juegan cualquier carta, tardan en gritar ¡UNO! y casi nunca te pillan.', 'They play any card, are slow to shout UNO and rarely catch you.'],
   'bots.normalDesc': ['Juegan con cabeza y a veces te pillan.', 'They play sensibly and sometimes catch you.'],
-  'bots.hardDesc': ['Gritan al momento, leen tus faroles y te pillan casi siempre.', 'They shout straight away, read your bluffs and almost always catch you.'],
+  'bots.hardDesc': ['Gritan al momento, ayudan a su compañero y te pillan casi siempre.', 'They shout straight away, help their partner and almost always catch you.'],
   'err.generic': ['Algo salió mal. Intenta de nuevo.', 'Something went wrong. Try again.']
 });
 const waitFor = (test, ms = 8000) => new Promise(res => {
@@ -767,6 +759,7 @@ async function handleQuickBots() {
     await handleCreate();
     if (!currentRoomId) return;
     await waitFor(() => roomState?.players?.length >= 1);
+    // me and a bot partner (team A) against two bots (team B) — makeBot fills half teams first
     await mutateRoom(cur => {
       const bots = [];
       for (let i = 0; i < 3; i++) bots.push(makeBot([...cur.players, ...bots]));
@@ -792,7 +785,7 @@ addStrings({
   'inv.title': ['Invita a tus amigos', 'Invite your friends'], 'inv.copy': ['Copiar enlace', 'Copy link'],
   'inv.copied': ['¡Copiado!', 'Copied!'], 'inv.whatsapp': ['WhatsApp', 'WhatsApp'], 'inv.share': ['Compartir', 'Share'],
   'inv.qr': ['Código QR', 'QR code'], 'inv.qrHelp': ['Escanéalo con la cámara del móvil para entrar.', 'Scan it with a phone camera to join.'],
-  'inv.msg': ['¡Juega ¡CAMALEÓN! conmigo! Entra aquí: {url}', 'Play ¡CAMALEÓN! with me! Join here: {url}'],
+  'inv.msg': ['¡Juega UNO TEAMS conmigo, en equipo! Entra aquí: {url}', 'Play UNO TEAMS with me, as a team! Join here: {url}'],
   'inv.joining': ['Entrando en la sala {code}…', 'Joining room {code}…'],
   'inv.needName': ['Escribe tu nombre y pulsa Unirse para entrar en la sala {code}.', 'Type your name and press Join to enter room {code}.']
 });
@@ -814,7 +807,7 @@ function copyInviteLink(btn) {
   const done = () => { btn.textContent = '✓ ' + t('inv.copied'); setTimeout(() => { btn.textContent = '🔗 ' + t('inv.copy'); }, 1500); };
   navigator.clipboard?.writeText(inviteURL()).then(done, done) ?? done();
 }
-function shareInvite() { navigator.share?.({ title: '¡CAMALEÓN!', url: inviteURL() }).catch(() => {}); }
+function shareInvite() { navigator.share?.({ title: 'UNO TEAMS', url: inviteURL() }).catch(() => {}); }
 function toggleInviteQR() { _qrOpen = !_qrOpen; if (roomState) renderLobby(roomState); }
 let _qrLib = null;
 function drawInviteQR() {
@@ -853,8 +846,8 @@ async function handleInviteParam() {
 }
 (function rememberName() {
   const input = document.getElementById('player-name');
-  try { if (!input.value) input.value = localStorage.getItem('camaleonName') || ''; } catch (_) {}
-  input.addEventListener('change', () => { try { localStorage.setItem('camaleonName', input.value.trim()); } catch (_) {} });
+  try { if (!input.value) input.value = localStorage.getItem('unoteamsName') || ''; } catch (_) {}
+  input.addEventListener('change', () => { try { localStorage.setItem('unoteamsName', input.value.trim()); } catch (_) {} });
 })();
 
 // ============================================================

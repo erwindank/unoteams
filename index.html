@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-  <title>¡CAMALEÓN!</title>
-  <meta name="description" content="Juego de cartas online con cartas flex y Cartas de Poder. Juega con amigos o contra bots.">
+  <title>UNO TEAMS</title>
+  <meta name="description" content="UNO en parejas, online: pasa cartas a tu compañero y ganad juntos. Juega con amigos o contra bots.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Lilita+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -12,16 +12,18 @@
   <!-- Install as an app -->
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <meta name="theme-color" content="#0a2a22">
+  <meta name="theme-color" content="#24001a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="¡CAMALEÓN!">
+  <meta name="apple-mobile-web-app-title" content="UNO TEAMS">
   <link rel="stylesheet" href="style.css?v=1">
-  <link rel="stylesheet" href="extras.css?v=2">
-  <link rel="stylesheet" href="camaleon.css?v=1">
+  <link rel="stylesheet" href="extras.css?v=1">
+  
   <!-- new look (look.css + look.js): cards, table, hand fan, seats, title screen, font, movement -->
-  <link rel="stylesheet" href="look.css?v=9">
+  <link rel="stylesheet" href="look.css?v=1">
+  <!-- the team game on top of the Fiesta look: team colours, partner seat, lobby teams, pass window -->
+  <link rel="stylesheet" href="teams.css?v=1">
   <script src="https://cdn.jsdelivr.net/npm/emoji-mart@5/dist/browser.js"></script>
 </head>
 <body>
@@ -30,20 +32,18 @@
 <div id="screen-landing" class="screen active">
   <div class="landing-card">
     <div class="landing-lang"><span class="lang-switch"><button type="button" class="lang-btn" data-lang="es" onclick="setLanguage('es')">ES</button><button type="button" class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button></span></div>
-    <!-- The logo is a chameleon card that keeps changing colour -->
-    <div class="logo-cham" aria-hidden="true"><div class="logo-card"><span class="logo-lizard">🦎</span><span class="logo-bolt">⚡</span></div></div>
-    <h1 class="game-title"><span class="title-fan" aria-hidden="true"></span><span class="title-main" aria-label="¡CAMALEÓN!"><span>¡</span><span>C</span><span>A</span><span>M</span><span>A</span><span>L</span><span>E</span><span>Ó</span><span>N</span><span>!</span></span></h1>
-    <p class="tagline" data-i18n="land.tagline">Cartas con un segundo color, una ⚡ Carta de Poder frente a ti. Usa el lado flex en el momento justo.</p>
+    <!-- new look (title screen): four real cards fanned behind the big UNO TEAMS logo (look.js fills the fan) -->
+    <h1 class="game-title"><span class="title-fan" aria-hidden="true"></span><span class="title-uno">UNO</span><span class="title-party">TEAMS</span></h1>
+    <p class="tagline" data-i18n="land.tagline">UNO en parejas: pasa cartas a tu compañero, cédele el turno… ¡y ganad juntos!</p>
     <div class="rules-card">
       <h2 data-i18n="land.howTitle">Cómo jugar</h2>
-      <p data-i18n="land.how1">Juega una carta que coincida en <strong>color, número o símbolo</strong> con la de la mesa, o un comodín. ¿No puedes (o no quieres)? Roba una. ¿Te queda una sola? Grita <strong>¡ÚLTIMA!</strong></p>
-      <p data-i18n="land.how2">Las <strong>🦎 cartas flex</strong> tienen un color normal y un segundo color <strong>flex</strong>. Mientras tu <strong>⚡ Carta de Poder</strong> esté en verde puedes jugar el lado flex: coincidir por su color flex o lanzar la acción flex, más fuerte. El siguiente sigue con el color normal de la carta. Usar un lado flex pone tu Carta de Poder en rojo.</p>
+      <p data-i18n="land.how1">Juega una carta que coincida en <strong>color, número o símbolo</strong> con la de la mesa, o un comodín. ¿No puedes (o no quieres)? Roba una. ¿Te queda una sola? Grita <strong>¡UNO!</strong> — tu compañero puede gritarlo por ti.</p>
+      <p data-i18n="land.how2">Jugáis en <strong>equipos de 2</strong>, cada uno frente a su compañero. Tu equipo gana cuando <strong>los dos</strong> os quedáis sin cartas.</p>
       <ul data-i18n="land.how3">
-        <li>Acciones flex: <strong>Roba Dos</strong> → todos los demás roban 1 · <strong>Salto</strong> → salta a todos · <strong>Reversa</strong> → cambia y salta · <strong>Comodín Diana +2 / Roba Cuatro</strong> → roba el jugador que elijas · <strong>Comodín Todos Roban</strong> → todos los demás roban 2.</li>
-        <li>Tu Carta de Poder se voltea al jugar una carta de número con <strong>🔄</strong>, cuando alguien juega un <strong>Comodín Voltea Todos</strong>, y todas vuelven a verde cuando <strong>todos están en rojo</strong>.</li>
-        <li>El Comodín Roba Cuatro (lado normal) solo es limpio si no tienes cartas del color ni comodines — el siguiente puede <strong>desafiarte</strong>.</li>
+        <li>Cuando te quedas sin cartas, tu compañero te pasa <strong>la mitad de las suyas</strong>. Mientras estás fuera, si él roba, te vuelve a pasar la mitad.</li>
+        <li><strong>🔁 Símbolo de pase</strong>: tú y tu compañero os cambiáis una carta. <strong>🤝 Comodín Juego en Equipo</strong>: el turno salta a tu compañero. <strong>✌️ Comodín Equipo Roba Cuatro</strong>: el siguiente y su compañero roban 2 cada uno.</li>
       </ul>
-      <p data-i18n="land.how4">Vacía tu mano para ganar la ronda y llevarte los puntos de las cartas de los demás. Juega una ronda o una partida a 500. De 2 a 8 jugadores.</p>
+      <p data-i18n="land.how4">Juega una ronda o una partida a 500. De 2 a 4 equipos (4 a 8 jugadores).</p>
       <button type="button" class="link-btn" onclick="openRules()" data-i18n="land.allRules">Ver todas las reglas →</button>
     </div>
     <!-- Guided first game (tutorial.js fills in the text) -->
@@ -64,12 +64,12 @@
         autocomplete="off" oninput="this.value=this.value.toUpperCase()">
       <button class="btn btn-primary" onclick="handleJoin()" data-i18n="land.join">Unirse</button>
     </div>
-    <!-- One tap into a game against 3 bots -->
+    <!-- One tap into a game: me + a bot partner against two bots -->
     <button class="btn btn-bots-quick" id="quick-bots-btn" onclick="handleQuickBots()">🤖 <span data-i18n="land.bots">Jugar contra bots</span></button>
     <div id="landing-error" class="error hidden"></div>
     <!-- new look (title screen): the rules summary above is hidden on the start page; this opens the full rules window -->
     <button type="button" class="link-btn how-link" onclick="openRules()">📖 <span data-i18n="land.howLink">Cómo jugar</span></button>
-    <p class="muted" style="font-size:.75rem;text-align:center" data-i18n="land.players">Hasta 8 jugadores · No se necesita cuenta</p>
+    <p class="muted" style="font-size:.75rem;text-align:center" data-i18n="land.players">De 4 a 8 jugadores en equipos de 2 · No se necesita cuenta</p>
     <button type="button" class="link-btn stats-link" onclick="openMyStats()">🏅 <span data-i18n="stats.open">Tus estadísticas e insignias</span><span id="stats-link-count"></span></button>
   </div>
 </div>
@@ -140,7 +140,7 @@
     </div>
   </div>
 
-  <!-- Opponents: face, ⚡ token, name and face-down cards -->
+  <!-- The other players in seat order (partner across = in the middle): face, team tag, name, face-down cards -->
   <div id="opponents-row" class="opponents-row"></div>
 
   <!-- Table -->
@@ -166,7 +166,7 @@
       <div id="game-status" class="game-status"></div>
     </div>
 
-    <!-- ¡ÚLTIMA! overlay -->
+    <!-- ¡UNO! overlay -->
     <div id="uno-call-overlay" class="uno-call-overlay hidden">
       <div class="uno-call-content">
         <p id="uno-call-label" class="uno-call-label"></p>
@@ -182,8 +182,8 @@
   <div class="hand-area">
     <div class="hand-head">
       <div id="hand-label" class="hand-label">Tu mano</div>
-      <!-- my ⚡ power token (app.js renderHand) -->
-      <div id="my-power" class="my-power"></div>
+      <!-- my team and my partner (app.js renderHand) -->
+      <div id="my-team" class="my-team"></div>
     </div>
     <div id="turn-order-info" class="turn-order-info hidden"></div>
     <div id="player-hand" class="player-hand"></div>
@@ -228,7 +228,7 @@
     <button class="chat-emote-btn" onclick="sendEmote('😅')">😅</button>
     <button class="chat-emote-btn" onclick="sendEmote('😮')">😮</button>
     <button class="chat-emote-btn" onclick="sendEmote('🎉')">🎉</button>
-    <button class="chat-emote-btn" onclick="sendEmote('🦎')">🦎</button>
+    <button class="chat-emote-btn" onclick="sendEmote('🤝')">🤝</button>
     <button class="chat-emote-btn" onclick="sendEmote('🤡')">🤡</button>
   </div>
   <div class="chat-input-row">
@@ -239,7 +239,7 @@
 <!-- Speech bubble overlay -->
 <div id="speech-bubbles" class="speech-bubbles"></div>
 
-<!-- Play window (bottom sheet): the colour for a wild or a chameleon card, and the ⚡ power -->
+<!-- Play window (bottom sheet): the colour for a wild, and what a team wild will do -->
 <div id="claim-dialog" class="claim-dialog hidden">
   <div class="claim-dialog-inner">
     <h3 id="claim-dialog-title">Elige el color</h3>
@@ -256,7 +256,7 @@
   </div>
 </div>
 
-<!-- Wild +4: accept or challenge -->
+<!-- Passing cards to my partner (first pass, 🔁 swap, half when they go out) -->
 <div id="challenge-area" class="wild4-challenge-area hidden">
   <div class="w4c-inner" id="challenge-content"></div>
 </div>
@@ -278,26 +278,26 @@
 <!-- Rules -->
 <div id="rules-modal" class="spotify-modal hidden" onclick="rulesBackdropClick(event)">
   <div class="spotify-modal-card rules-modal-card">
-    <h3 class="spotify-modal-title" data-i18n="rules.title">📖 Reglas de ¡CAMALEÓN!</h3>
+    <h3 class="spotify-modal-title" data-i18n="rules.title">📖 Reglas de UNO TEAMS</h3>
     <div class="rules-body">
       <h4 data-i18n="rules.goalT">Objetivo</h4>
-      <p data-i18n="rules.goal">Quedarte sin cartas antes que nadie. En tu turno juega UNA carta que coincida en <strong>color, número o símbolo</strong> con la de la mesa, o un comodín. Si no tienes, roba una: si sirve puedes jugarla al momento. También puedes robar en vez de jugar, aunque tengas una carta que sirva.</p>
-      <h4 data-i18n="rules.flexT">🦎 Cartas flex</h4>
-      <p data-i18n="rules.flex">Una carta flex tiene un lado normal (su color principal) y un <strong>lado flex</strong> (un segundo color en su base y la esquina 🦎). Se juega por su lado normal salvo que elijas el lado flex. El lado flex de una carta de <strong>número</strong> le deja coincidir por su color flex — pero el siguiente tiene que seguir su color <strong>normal</strong>.</p>
-      <h4 data-i18n="rules.powerT">⚡ Carta de Poder</h4>
-      <p data-i18n="rules.power">Todos empiezan con su Carta de Poder en <strong>verde</strong>. Solo en verde puedes jugar un lado flex, y al hacerlo pasa a <strong>rojo</strong>. Sigue en rojo hasta que: todas las Cartas de Poder están en rojo a la vez (todas vuelven a verde), juegas una carta de número con el icono <strong>🔄</strong> (DEBES voltear la tuya, de verde a rojo o de rojo a verde), o alguien juega un <strong>Comodín Voltea Todos</strong> (todos voltean la suya).</p>
+      <p data-i18n="rules.goal">Ser el primer <strong>equipo</strong> en quedarse sin ninguna carta en <strong>las dos</strong> manos. En tu turno juega UNA carta que coincida en <strong>color, número o símbolo</strong> con la de la mesa, o un comodín. Si no tienes, roba una: si sirve puedes jugarla al momento. También puedes robar en vez de jugar, aunque tengas una carta que sirva.</p>
+      <h4 data-i18n="rules.teamsT">👥 Equipos</h4>
+      <p data-i18n="rules.teams">De 2 a 4 equipos de 2. Cada uno se sienta frente a su compañero. Al empezar, después de repartir, <strong>todos pasan una carta a su compañero</strong>. Los compañeros pueden hablar, pero nunca de las cartas que tienen, ni del color cuando se juega un comodín.</p>
+      <h4 data-i18n="rules.outT">🏃 Quedarse sin cartas</h4>
+      <p data-i18n="rules.out">Cuando juegas tu última carta, tu compañero te pasa <strong>la mitad de sus cartas</strong> (si tiene un número impar se queda con la mitad más grande: 9 cartas → pasa 4 y se queda 5). Si a tu compañero solo le queda 1 carta, no te pasa nada y te quedas fuera: tus turnos se saltan. <strong>Volver al juego</strong>: mientras estás fuera, si tu compañero roba cartas por lo que sea, te pasa la mitad al momento.</p>
       <h4 data-i18n="rules.actionsT">Cartas de acción</h4>
-      <p data-i18n="rules.actions"><strong>Roba Dos</strong> el siguiente roba 2 y pierde su turno · <strong>Salto</strong> el siguiente pierde su turno · <strong>Reversa</strong> cambia el sentido (con 2 jugadores funciona como salto) · <strong>Comodín Voltea Todos</strong> todos voltean su Carta de Poder y tú eliges el color. Una carta de acción puede ir sobre otra del mismo color o símbolo.</p>
-      <h4 data-i18n="rules.flexActT">Lados flex</h4>
-      <p data-i18n="rules.flexAct"><strong>Roba Dos flex</strong> todos los demás roban 1; el siguiente sí juega · <strong>Salto flex</strong> SALTA A TODOS, el turno vuelve a ti · <strong>Reversa flex</strong> cambia el sentido y salta al primero en la nueva dirección · <strong>Comodín Diana +2 flex</strong> roba 2 el jugador que elijas · <strong>Comodín Todos Roban flex</strong> todos los demás roban 2; el siguiente sí juega · <strong>Comodín Roba Cuatro flex</strong> roba 4 el jugador que elijas. Por su lado normal, el Diana +2 y el Todos Roban son comodines normales. Después de un robo con diana, sigue el siguiente jugador.</p>
-      <h4 data-i18n="rules.chT">⚖️ Comodín Roba Cuatro</h4>
-      <p data-i18n="rules.ch">Por su lado normal va sobre cualquier carta, pero solo puedes jugarlo si NO tienes ninguna carta del color de la mesa (los comodines cuentan como coincidencia). El siguiente roba 4 y pierde su turno, o te desafía: si tenías coincidencia, robas TÚ 4 y él ninguna; si no, él roba 6 y pierde su turno. El color que elegiste se queda en ambos casos.</p>
-      <h4 data-i18n="rules.unoT">📣 ¡ÚLTIMA!</h4>
-      <p data-i18n="rules.uno">Cuando te quede una carta, grita <strong>¡ÚLTIMA!</strong>. Si alguien te pilla antes de que juegue el siguiente, robas 2.</p>
+      <p data-i18n="rules.actions"><strong>Roba Dos</strong> el siguiente roba 2 y pierde su turno · <strong>Salto</strong> el siguiente pierde su turno · <strong>Reversa</strong> cambia el sentido (si solo quedan 2 jugadores funciona como salto) · <strong>Comodín</strong> va sobre cualquier carta y eliges el color. En esta baraja no hay ceros.</p>
+      <h4 data-i18n="rules.teamCardsT">🤝 Cartas de equipo</h4>
+      <p data-i18n="rules.teamCards"><strong>Comodín Juego en Equipo</strong>: elige un color; el turno salta directamente a tu compañero. Si puede jugar una carta, la juega; si NO puede, robas TÚ 2. El juego sigue desde tu compañero. · <strong>Comodín Equipo Roba Cuatro</strong>: el siguiente roba 2 y pierde su turno, y su compañero también roba 2 (aunque esté fuera). Eliges el color.</p>
+      <h4 data-i18n="rules.passT">🔁 Símbolo de pase</h4>
+      <p data-i18n="rules.pass">Algunas cartas de número (del 1 al 5) llevan el símbolo de pase. Al jugar una, tú y tu compañero os pasáis 1 carta cada uno, sin dar pistas de cuál queréis.</p>
+      <h4 data-i18n="rules.unoT">📣 ¡UNO!</h4>
+      <p data-i18n="rules.uno">Cuando te quede una carta, grita <strong>¡UNO!</strong> — tu compañero puede gritarlo por ti. Si un jugador de otro equipo te pilla antes de que empiece el turno del siguiente, robas 2.</p>
       <h4 data-i18n="rules.ptsT">🏆 Puntos</h4>
-      <p data-i18n="rules.pts">Quien gana la ronda se lleva los puntos de las cartas de los demás: números (1–8) = su valor, cualquier carta de acción = 20, cualquier comodín = 50. En una partida, gana el primero en llegar a 500.</p>
+      <p data-i18n="rules.pts">El equipo ganador se lleva los puntos de las cartas que quedan en las manos de los otros equipos: números = su valor, Salto / Reversa / Roba Dos = 20, cualquier comodín = 50. En una partida, gana el primer equipo en llegar a 500.</p>
       <h4 data-i18n="rules.hereT">Cómo jugar aquí</h4>
-      <p data-i18n="rules.here">En tu turno las cartas que puedes jugar <strong>suben y brillan</strong>; las demás se oscurecen. Al tocar un comodín, o una carta flex con tu ⚡ en verde, se abre una ventana para elegir el color y el lado. Mantén pulsada una carta para verla en grande con su regla. Toca a otro jugador para lanzarle algo.</p>
+      <p data-i18n="rules.here">En tu turno las cartas que puedes jugar <strong>suben y brillan</strong>; las demás se oscurecen. Tu compañero se sienta enfrente con un aro del color de tu equipo. Cuando tengas que pasar cartas se abre una ventana: toca las cartas para elegirlas. Mantén pulsada una carta para verla en grande con su regla.</p>
     </div>
     <div class="spotify-modal-btns"><button class="btn btn-primary btn-sm" onclick="closeRules()" data-i18n="rules.ok">Entendido</button></div>
   </div>
@@ -332,12 +332,12 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script src="i18n.js?v=2"></script>
+<script src="i18n.js?v=1"></script>
 <script src="engine.js?v=1"></script>
-<script src="fx.js?v=2"></script>
-<script src="look.js?v=5"></script>
-<script src="app.js?v=4"></script>
-<script src="extras.js?v=5"></script>
+<script src="fx.js?v=1"></script>
+<script src="look.js?v=1"></script>
+<script src="app.js?v=1"></script>
+<script src="extras.js?v=1"></script>
 <script src="tutorial.js?v=1"></script>
 <script>
   // Install as an app: register the offline helper (network first, see sw.js)

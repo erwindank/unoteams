@@ -49,13 +49,22 @@ confetti movement). The GitHub repo is `unoteams`. Started 2026-11-23 from the �
 
 ## Steps
 1. ✅ Rules engine + tests
-2. Game screen for teams: lobby with team slots, seats with partner across, pass / give
-   windows, Wild Team Play, ¡UNO! for your partner, team scoring, bot stand-ins
-3. Fiesta new look: card faces, Team Play / Team Draw Four pictures, passing badge, table, hand
-   fan, seats, title screen, font, movement
-4. Effects, awards, stats and badges for the team rules
-5. Guided first game
-6. Rules window, icons, invite text, English, final browser tests
+2. ✅ Game screen for teams: lobby with team slots (join / add a bot to a team / fill with bots /
+   shuffle), seats in order with my partner across (in the middle, framed in our team colour,
+   COMPAÑERO tag, scrolled into view on phones), pass window (first pass, 🔁 swap, half a hand),
+   Wild Team Play / Team Draw Four, ¡UNO! for your partner, team scoring and results, bot stand-ins,
+   team awards and badges, guided game (9 steps), rules window, English
+3. ✅ Fiesta new look: Fiesta's own style.css / extras.css / look.css, look.js with drawn Team Play
+   (two team-mates, the turn jumping across) and Team Draw Four (two +2 cards) pictures and the 🔁
+   badge; teams.css for the team parts; new UNO TEAMS icon
+
+## Testing notes (2026-11-23)
+- `node test-engine.js` passes: hand-made checks for every rule, plus thousands of bot games with
+  4, 6 and 8 players (no lost cards, every game ends, the turn never sits on a player who is out).
+- Browser tests (Playwright + an in-memory stand-in for Firebase, real clicks): the guided game to
+  the end, full games against 3 bots (team plays, a failed team play, Team Draw Fours, going out,
+  half-hand passes, ¡UNO! for a partner), the lobby, an 8-player table on a phone and a computer.
+- Not yet tried: two real devices in the same online room.
 
 ## Before going live
 - GitHub Pages: Settings → Pages → deploy from `master`, root (erwindank.github.io/unoteams/).

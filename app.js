@@ -1,8 +1,8 @@
 // ============================================================
-// ¡CAMALEÓN! — online card game with flex cards and Power Cards (plays by the UNO Flex rules)
+// UNO TEAMS — online card game in teams of 2 (plays by the official UNO TEAMS! rules)
 //
-// Same family as UNO Fiesta, UNO Mentiroso, ¡VOLTEA! and VIRUS! (same Firebase project;
-// rooms are tagged game:'camaleon'). Built like ¡VOLTEA!:
+// Same family as UNO Fiesta, UNO Mentiroso, ¡CAMALEÓN!, GOLF and VOLTEO (same Firebase
+// project; rooms are tagged game:'unoteams'). Built like ¡CAMALEÓN!:
 //   • every rule lives in engine.js — app.js only shows the game and sends moves
 //   • every move is saved with ONE Firestore transaction (sendMove → mutateRoom)
 //   • fx.js / extras.js read the events the engine writes (state.ev), not log text
@@ -25,18 +25,19 @@ const FIREBASE_CONFIG = {
 // CONSTANTS
 // ============================================================
 
-const GAME_TAG    = 'camaleon';   // all the card games share the 'rooms' collection
-const MAX_PLAYERS = Engine.MAX_PLAYERS;   // 8: one Power Card each
-const { COLORS, NUMBERS, WILD_COLOR } = Engine;
+const GAME_TAG    = 'unoteams';   // all the card games share the 'rooms' collection
+const MAX_PLAYERS = Engine.MAX_PLAYERS;   // 8: four teams of two
+const { COLORS, NUMBERS, WILD_COLOR, TEAMS } = Engine;
 
 // Card colours on screen
-const CARD_HEX = { red: '#E0322B', yellow: '#F4B814', green: '#1FA251', blue: '#1F63E0' };
+const CARD_HEX = { red: '#e8343b', yellow: '#f5ac1d', green: '#22a454', blue: '#2c6ae0' };
 // Symbol printed on each kind of card
-const SYMBOL = { skip: '⊘', reverse: '⇄', draw2: '+2', wildFlip: '⚡', wildTarget2: '🎯', wildAllDraw: '+2', wild4: '+4' };
-// What the flex side of each card does (shown on the card's 🦎 corner and in the play window)
-const FLEX_ICON = { skip: '⊘⊘', reverse: '⇄⊘', draw2: '+1', wildTarget2: '🎯2', wildAllDraw: '+2', wild4: '🎯4' };
+const SYMBOL = { skip: '⊘', reverse: '⇄', draw2: '+2', wild: '★', teamPlay: '🤝', team4: '+4' };
 // Shape per colour for the colour-blind option (menu → Pantalla)
 const CB_GLYPH = { red: '▲', yellow: '●', green: '■', blue: '◆' };
+// Each team's colour and emoji (never one of the four card colours, so they can't be confused)
+const TEAM_HEX = { A: '#ffd54a', B: '#ff4f9a', C: '#2dd4bf', D: '#a78bfa' };
+const TEAM_ICON = { A: '⭐', B: '💗', C: '⚡', D: '🌙' };
 
 // Spotify sends people back to this page after they log in.
 // (The address must also be listed in the Spotify app's settings.)
@@ -56,62 +57,55 @@ function wildQuadHTML() {
   return `<span class="wild-quad">${COLORS.map(x => `<span class="wq" style="background:${CARD_HEX[x]}"></span>`).join('')}</span>`;
 }
 
-// One card. card = {c, v, flip?} classic · {c, c2, v, flex} flex · {c:'wild', v, flex?} wild
+// One card. card = {c, v, pass?} number · {c, v} action · {c:'wild', v} wild
 //   opts.cls    extra classes        opts.attrs  extra attributes
 //   opts.chosen colour named for a wild on the table (coloured ring)
-//   opts.flexUp the card was played on its flex side (the flex corner glows)
 function cardHTML(card, opts = {}) {
   if (!card) return '';
   const wild = card.c === WILD_COLOR;
-  const flex = !!card.flex;
   const lbl = symbolOf(card.v);
-  // new look (look.js): drawn pictures, a four-colour leaf on wilds, pictures in the corners
+  // new look (look.js): drawn pictures, a four-colour diamond on wilds, pictures in the corners
   const look = typeof lookIconHTML === 'function';
   const center = wild
     ? (look ? lookWildCenterHTML(card.v) : `${wildQuadHTML()}<span class="wild-extra-label">${lbl}</span>`)
     : ((look && lookIconHTML(card.v)) || `<span class="card-label center">${lbl}</span>`);
   const corner = pos => look ? lookCornerHTML(card.v, pos) : `<span class="card-label ${pos}">${lbl}</span>`;
-  // a flex card's second colour is the band across its foot (--c2)
-  const vars = [];
-  if (card.c2) vars.push(`--c2:${CARD_HEX[card.c2]}`);
-  if (opts.chosen) vars.push(`--chosen:${CARD_HEX[opts.chosen]}`);
-  const style = vars.length ? ` style="${vars.join(';')}"` : '';
-  const cls = `c-${card.c}${flex ? ' flex' : ''}${card.c2 ? ' flex-color' : ''}${opts.chosen ? ' chosen' : ''}${opts.flexUp ? ' flex-up' : ''}`;
-  // the 🦎 corner says what the flex side does (number cards: just the lizard — they only change colour)
-  const fxIcon = FLEX_ICON[card.v] || '';
+  const style = opts.chosen ? ` style="--chosen:${CARD_HEX[opts.chosen]}"` : '';
+  // Fiesta look: the colour class (wilds are 'black') draws the face, the diamond and the shine
+  const cls = `${wild ? 'black' : card.c} c-${card.c}${opts.chosen ? ' chosen' : ''}${card.pass ? ' has-pass' : ''}`;
   return `<div class="card ${cls}${opts.cls ? ' ' + opts.cls : ''}" data-v="${card.v}"${style}${opts.attrs || ''}>
-    <span class="card-oval"></span>
     ${corner('tl')}${center}${corner('br')}
-    ${card.c2 ? `<span class="flex-band"></span>` : ''}
-    ${flex ? `<span class="flex-badge" title="${esc(t('flex.side'))}">🦎${fxIcon ? `<i>${fxIcon}</i>` : ''}</span>` : ''}
-    ${card.flip ? `<span class="flip-badge" title="${esc(t('card.flipIcon'))}">🔄</span>` : ''}
-    ${wild ? '' : `<span class="cb-glyph">${CB_GLYPH[card.c] || ''}${card.c2 ? '/' + CB_GLYPH[card.c2] : ''}</span>`}
+    ${card.pass ? `<span class="pass-badge" title="${esc(t('card.passIcon'))}">${typeof lookPassHTML === 'function' ? lookPassHTML() : '🔁'}</span>` : ''}
+    ${wild ? '' : `<span class="cb-glyph">${CB_GLYPH[card.c] || ''}</span>`}
   </div>`;
 }
-// Tiny card (winner screen, challenge reveal)
+// Tiny card (winner screen)
 function miniHTML(card) {
   const lbl = symbolOf(card.v);
-  const style = card.c2 ? ` style="--c2:${CARD_HEX[card.c2]}"` : '';
-  return `<span class="mini-face c-${card.c}${card.c2 ? ' flex-color' : ''}${card.flip ? ' flip' : ''}" data-v="${card.v}"${style} title="${esc(cardName(card))}">${lbl}</span>`;
+  return `<span class="mini-face c-${card.c}${card.pass ? ' pass' : ''}" data-v="${card.v}" title="${esc(cardName(card))}">${lbl}</span>`;
 }
-// "Rojo 5", "Rojo 5 · flex Azul", "Comodín Roba 4"…
+// "Rojo 5", "Comodín Juego en Equipo"…
 function cardName(card) {
   if (!card) return '?';
   if (card.c === WILD_COLOR) return t('card.' + card.v);
-  const base = `${t('color.' + card.c)} ${isNumber(card.v) ? card.v : t('card.' + card.v)}`;
-  return card.c2 ? t('card.flexName', { base, b: t('color.' + card.c2) }) : base;
+  return `${t('color.' + card.c)} ${isNumber(card.v) ? card.v : t('card.' + card.v)}`;
 }
 // Same as a coloured chip for the log and captions
 function cardChip(card) {
   if (!card) return '?';
-  const name = esc(cardName(card));
+  const name = esc(cardName(card)) + (card.pass ? ' 🔁' : '');
   if (card.c === WILD_COLOR) return `<span class="lc lc-wild">${name}</span>`;
-  if (card.c2) return `<span class="lc lc-flex" style="--lc:${CARD_HEX[card.c]};--lc2:${CARD_HEX[card.c2]}">${name}</span>`;
   return `<span class="lc" style="--lc:${CARD_HEX[card.c]}">${name}</span>`;
 }
 const colorChip = c => c && CARD_HEX[c] ? `<span class="lc" style="--lc:${CARD_HEX[c]}">${esc(t('color.' + c))}</span>` : '?';
-// The ⚡ Power Card next to a name: green (flex sides allowed) or red (not)
-const tokenHTML = (green, big) => `<span class="pw-token ${green ? 'on' : 'off'}${big ? ' big' : ''}" title="${esc(t(green ? 'tok.on' : 'tok.off'))}">⚡</span>`;
+
+// ---- Teams ----
+const teamLabel = tm => `${TEAM_ICON[tm] || ''} ${t('team.' + tm)}`;
+// A small coloured tag with the team's emoji (next to names)
+const teamTagHTML = (tm, small) => tm ? `<span class="team-tag${small ? ' sm' : ''}" style="--team:${TEAM_HEX[tm]}" title="${esc(t('team.word') + ' ' + t('team.' + tm))}">${TEAM_ICON[tm]}</span>` : '';
+const myTeam = state => state?.players?.find(p => p.id === localUid)?.team || null;
+const myMate = state => state?.players?.length ? Engine.partnerOf(state, localUid) : null;
+const playerName = (state, id) => state?.players?.find(p => p.id === id)?.name || '?';
 
 // ============================================================
 // FIREBASE INIT
@@ -342,13 +336,17 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Who the game is waiting for right now (a challenge or colour pick comes first)
+// Who the game is waiting for right now. While cards are being passed that can be several
+// players (Engine.waitingFor lists them); whoActs gives me if I'm one of them, else the first.
 function whoActs(state) {
-  if (!state || state.status !== 'playing') return null;
-  const ph = state.phase;
-  if (ph?.k === 'challenge') return ph.target;
-  if (ph?.k === 'color') return ph.pid;
-  return state.players[state.currentPlayerIndex]?.id || null;
+  const list = Engine.waitingFor(state);
+  if (!list.length) return null;
+  return list.includes(localUid) ? localUid : list[0];
+}
+// Am I one of the players who still has to pick cards to pass?
+function mustPass(state) {
+  const ph = state?.phase;
+  return !!ph && Engine.waitingFor(state).includes(localUid);
 }
 function isMyTurn(state) {
   if (!state?.players?.length || state.status !== 'playing') return false;
@@ -425,7 +423,7 @@ function newRoomDoc(name) {
     game: GAME_TAG,
     status: 'lobby',
     hostId: localUid,
-    players: [{ id: localUid, name, cardCount: 0 }],
+    players: [{ id: localUid, name, cardCount: 0, team: 'A' }],
     hands: {},
     drawPile: [],
     discard: [],
@@ -463,6 +461,37 @@ function getUniqueName(desiredName, players) {
   return desiredName + n;
 }
 
+// The team a newcomer joins: the first one with a free seat (a half team first), or a new one
+function freeTeam(players) {
+  const n = tm => players.filter(p => p.team === tm).length;
+  return TEAMS.find(tm => n(tm) === 1) || TEAMS.find(tm => n(tm) === 0) || TEAMS[0];
+}
+
+// A seat in a running game changes hands: the room patch (log line included).
+// player = { id, name } of whoever sits down now (a person coming back, or a bot stand-in).
+function takeSeat(cur, oldId, player, logKey = 'log.back') {
+  const seat = cur.players.find(p => p.id === oldId);
+  const st = Engine.replacePlayer(cur, oldId, {
+    id: player.id, name: player.name, disconnected: false,
+    isBot: !!player.isBot, persona: player.persona || null, standInFor: player.standInFor || null
+  });
+  const patch = { ...gamePatch(st), log: pushLog(st.log, logKey, { name: player.standInFor || player.name }) };
+  if (cur.hostId === oldId) {
+    // the host keeps hosting when they come back; a bot can't host (it runs on the host's device)
+    patch.hostId = !player.isBot ? player.id
+      : (st.players.find(p => !isBot(p.id) && !p.disconnected)?.id || cur.hostId);
+  }
+  patch.endVotes = (cur.endVotes || []).filter(id => id !== oldId);
+  return seat ? patch : null;
+}
+// A bot keeps a player's seat warm (they left or lost connection): same seat, cards and team
+function standInPatch(cur, pid) {
+  const p = cur.players.find(x => x.id === pid);
+  if (!p || isBot(p.id)) return null;
+  const bot = { id: botGenUid(), name: '🤖 ' + stripLeadingEmoji(p.name), isBot: true, persona: 'balanced', standInFor: p.name };
+  return takeSeat(cur, pid, bot, 'log.standIn');
+}
+
 // Rooms of the other games never open here
 const isOurRoom = data => !!data && data.game === GAME_TAG;
 
@@ -489,37 +518,19 @@ async function handleJoin() {
     if (cur.status === 'lobby') {
       if (players.length >= MAX_PLAYERS) { err = t('err.full', { n: MAX_PLAYERS }); return null; }
       localName = getUniqueName(name, players);
-      return { players: [...players, { id: localUid, name: localName, cardCount: 0 }] };
+      return { players: [...players, { id: localUid, name: localName, cardCount: 0, team: freeTeam(players) }] };
     }
 
-    // In a game already: take back my seat (same name, maybe from another device)…
-    const seat = players.find(p => p.name === name || p.name === rawName || stripLeadingEmoji(p.name) === rawName);
+    // In a game already: take back my seat (same name, maybe from another device, or the
+    // seat a bot has been keeping warm for me). Nobody new can sit down: teams must stay full.
+    const seat = players.find(p => p.name === name || p.name === rawName || stripLeadingEmoji(p.name) === rawName
+      || p.standInFor === name || p.standInFor === rawName);
     if (seat) {
-      localName = seat.name;
-      const oldUid = seat.id;
-      const patch = {
-        players: players.map(p => p.id === oldUid ? { ...p, id: localUid, disconnected: false } : p),
-        log: pushLog(cur.log, 'log.back', { name: seat.name })
-      };
-      if (oldUid !== localUid) {
-        const hands = { ...(cur.hands || {}) };
-        hands[localUid] = hands[oldUid] || [];
-        delete hands[oldUid];
-        patch.hands = hands;
-        // the game may be waiting on me under my old id
-        const swap = id => id === oldUid ? localUid : id;
-        if (cur.phase) patch.phase = { ...cur.phase, target: swap(cur.phase.target), by: swap(cur.phase.by), pid: swap(cur.phase.pid) };
-        if (cur.uno) patch.uno = { ...cur.uno, pid: swap(cur.uno.pid) };
-        if (cur.drawn) patch.drawn = { ...cur.drawn, pid: swap(cur.drawn.pid) };
-        if (cur.points?.[oldUid] != null) { patch.points = { ...cur.points, [localUid]: cur.points[oldUid] }; delete patch.points[oldUid]; }
-      }
-      return patch;
+      localName = seat.standInFor || seat.name;
+      return takeSeat(cur, seat.id, { id: localUid, name: localName });
     }
-    // …or sit down as a new player with 7 cards
-    if (cur.status !== 'playing') { err = t('err.started'); return null; }
-    if (players.length >= MAX_PLAYERS) { err = t('err.full', { n: MAX_PLAYERS }); return null; }
-    localName = getUniqueName(name, players);
-    return gamePatch(Engine.addPlayer(cur, { id: localUid, name: localName }));
+    err = t('err.started');
+    return null;
   });
   if (err) { currentRoomId = null; showLandingError(err); return; }
 
@@ -537,10 +548,14 @@ async function tryRejoin(roomId) {
     if (!snap.exists || !isOurRoom(snap.data())) { sessionStorage.clear(); return; }
     const data = snap.data();
     const player = data.players.find(p => p.id === localUid);
-    if (!player) { sessionStorage.clear(); return; }
+    // a bot kept my seat while I was away: take it back
+    const keptBy = !player && data.status !== 'lobby' && data.players.find(p => p.standInFor && p.standInFor === localName);
+    if (!player && !keptBy) { sessionStorage.clear(); return; }
 
     currentRoomId = roomId;
-    if (player.disconnected) {
+    if (keptBy) {
+      await mutateRoom(cur => cur.players.some(p => p.id === keptBy.id) ? takeSeat(cur, keptBy.id, { id: localUid, name: localName }) : null);
+    } else if (player.disconnected) {
       await mutateRoom(cur => ({
         players: cur.players.map(p => p.id === localUid ? { ...p, disconnected: false } : p),
         log: pushLog(cur.log, 'log.back', { name: player.name })
@@ -704,6 +719,8 @@ async function markPlayerDisconnected(uid, name) {
   await mutateRoom(cur => {
     const player = cur.players.find(p => p.id === uid);
     if (!player || player.disconnected) return null;   // gone already, or marked
+    // in a game a bot takes over the seat, so their partner isn't left alone
+    if (cur.status === 'playing') return standInPatch(cur, uid);
     return {
       players: cur.players.map(p => p.id === uid ? { ...p, disconnected: true } : p),
       log: pushLog(cur.log, 'log.gone', { name })
@@ -795,8 +812,18 @@ function renderLobby(state) {
   const readyVotes = state.readyVotes || [];
   const isRematch  = prevNames.length > 0;
   const isHost = state.hostId === localUid;
+  const players = state.players || [];
+  const mine = players.find(p => p.id === localUid);
 
-  document.getElementById('player-list').innerHTML = state.players.map(p => {
+  // One box per team (2 seats each). Teams with nobody yet show up one at a time, so
+  // there's always one more team to join while the room has space.
+  const used = TEAMS.filter(tm => players.some(p => p.team === tm));
+  const shown = TEAMS.filter(tm => used.includes(tm) || (used.length < 2 && TEAMS.indexOf(tm) < 2));
+  const nextFree = TEAMS.find(tm => !shown.includes(tm));
+  const allFull = shown.every(tm => players.filter(p => p.team === tm).length >= 2);
+  if (nextFree && allFull && players.length < MAX_PLAYERS) shown.push(nextFree);
+
+  const seatHTML = p => {
     const isReady   = readyVotes.includes(p.id);
     const wasHere   = isRematch && prevNames.includes(p.name);
     const removeBtn = isHost && isBot(p.id)
@@ -809,7 +836,23 @@ function renderLobby(state) {
       ${p.disconnected ? ` <span class="dc-badge">${t('lob.dc')}</span>` : ''}
       ${removeBtn}
     </div>`;
-  }).join('');
+  };
+  const emptyHTML = tm => `<div class="player-item seat-empty">
+      <span class="muted">${t('lob.empty')}</span>
+      <span class="seat-empty-btns">
+        ${mine && mine.team !== tm ? `<button class="btn btn-sm btn-join-team" onclick="handleJoinTeam('${tm}')">${t('lob.join')}</button>` : ''}
+        ${isHost ? `<button class="btn btn-sm btn-add-bot" onclick="handleAddBot('${tm}')" title="${esc(t('lob.addBot'))}">🤖+</button>` : ''}
+      </span>
+    </div>`;
+  document.getElementById('player-list').innerHTML =
+    `<div class="lobby-teams-head"><b>${t('lob.teamsTitle')}</b><span class="muted">${t('lob.teamsHelp')}</span></div>` +
+    shown.map(tm => {
+      const members = players.filter(p => p.team === tm);
+      return `<div class="lobby-team ${mine?.team === tm ? 'mine' : ''}" style="--team:${TEAM_HEX[tm]}">
+        <div class="lobby-team-name">${teamTagHTML(tm)} ${t('team.word')} ${esc(t('team.' + tm))}</div>
+        ${members.map(seatHTML).join('')}${members.length < 2 ? emptyHTML(tm).repeat(2 - members.length) : ''}
+      </div>`;
+    }).join('');
 
   // Ready-up button (only shown in rematch lobbies)
   let readyArea = document.getElementById('lobby-ready-area');
@@ -826,21 +869,24 @@ function renderLobby(state) {
     readyArea.innerHTML = '';
   }
 
-  const canStart = state.players.length >= 2;
+  const canStart = Engine.teamsReady(players);
   const startBtn = document.getElementById('start-btn');
   startBtn.classList.toggle('hidden', !isHost);
   document.getElementById('waiting-msg').classList.toggle('hidden', isHost);
 
-  // Bot button (host only)
+  // Host tools: fill the empty seats with bots, shuffle the teams
   let botArea = document.getElementById('lobby-bot-area');
   if (!botArea) {
     botArea = document.createElement('div');
     botArea.id = 'lobby-bot-area';
     document.querySelector('.lobby-actions').appendChild(botArea);
   }
-  botArea.innerHTML = isHost && state.players.length < MAX_PLAYERS
-    ? `<button class="btn btn-sm btn-add-bot" onclick="handleAddBot()">${t('lob.addBot')}</button>`
-    : '';
+  const halfTeam = TEAMS.some(tm => players.filter(p => p.team === tm).length === 1);
+  botArea.innerHTML = isHost ? `<div class="lobby-tools">
+      ${!canStart && players.length < MAX_PLAYERS ? `<button class="btn btn-sm btn-add-bot" onclick="handleFillBots()">${t('lob.fill')}</button>` : ''}
+      ${players.length >= 4 ? `<button class="btn btn-sm btn-ghost" onclick="handleShuffleTeams()">${t('lob.shuffle')}</button>` : ''}
+    </div>
+    ${!canStart ? `<p class="muted lobby-why">${t(halfTeam ? 'lob.halfTeam' : 'lob.needTeams')}</p>` : ''}` : '';
 
   if (isHost) {
     startBtn.disabled = !canStart;
@@ -851,33 +897,68 @@ function renderLobby(state) {
   if (typeof renderLobbyExtras === 'function') renderLobbyExtras(state, isHost);
 }
 
+// I move to another team (if it has a free seat)
+async function handleJoinTeam(tm) {
+  if (!roomState || roomState.status !== 'lobby' || !TEAMS.includes(tm)) return;
+  await mutateRoom(cur => {
+    if (cur.status !== 'lobby' || cur.players.filter(p => p.team === tm && p.id !== localUid).length >= 2) return null;
+    return { players: cur.players.map(p => p.id === localUid ? { ...p, team: tm } : p) };
+  });
+}
+// Host: bots take every free seat in half-full teams, then whole bot teams until there are 2 teams
+async function handleFillBots() {
+  if (!roomState || roomState.hostId !== localUid) return;
+  await mutateRoom(cur => {
+    if (cur.status !== 'lobby') return null;
+    let players = cur.players.map(p => TEAMS.includes(p.team) ? p : { ...p, team: freeTeam(cur.players) });
+    const count = tm => players.filter(p => p.team === tm).length;
+    for (const tm of TEAMS) {
+      while (count(tm) === 1 && players.length < MAX_PLAYERS) players = [...players, { ...makeBot(players), team: tm }];
+    }
+    for (const tm of TEAMS) {
+      if (TEAMS.filter(x => count(x) === 2).length >= 2 || players.length > MAX_PLAYERS - 2) break;
+      while (count(tm) < 2) players = [...players, { ...makeBot(players), team: tm }];
+    }
+    return { players };
+  });
+}
+// Host: new random pairs (keeps the same number of teams)
+async function handleShuffleTeams() {
+  if (!roomState || roomState.hostId !== localUid) return;
+  await mutateRoom(cur => {
+    if (cur.status !== 'lobby' || cur.players.length < 2) return null;
+    const mixed = Engine.shuffle(cur.players);
+    return { players: mixed.map((p, i) => ({ ...p, team: TEAMS[Math.floor(i / 2)] })) };
+  });
+}
+
 // ============================================================
 // START — the host deals a new round
 // ============================================================
 
 async function handleStart() {
-  if (!roomState || roomState.players.length < 2 || roomState.hostId !== localUid) return;
+  if (!roomState || !Engine.teamsReady(roomState.players) || roomState.hostId !== localUid) return;
   await mutateRoom(cur => {
-    if (cur.status === 'playing' || cur.players.length < 2) return null;
+    if (cur.status === 'playing' || !Engine.teamsReady(cur.players)) return null;
     const gameNo = (cur.gameNo || 0) + 1;
     const st = Engine.newRound(cur.players.map(p => ({ ...p, disconnected: false })), {
       matchTarget: cur.matchMode === 'match' ? Engine.MATCH_TARGET : 0,
       first: gameNo - 1
     });
+    if (!st) return null;
     return { ...gamePatch(st), endVotes: [], readyVotes: [], gameNo, seriesDone: false };
   });
 }
 
-// Next round of a match to 500 (points carry on)
+// Next round of a match to 500 (points carry on; the seats stay as they are)
 async function handleNextRound() {
   if (!roomState || roomState.hostId !== localUid) return;
   await mutateRoom(cur => {
     if (cur.status !== 'ended' || !cur.matchTarget || cur.matchWinner) return null;
-    const players = cur.players.filter(p => !p.disconnected);
-    if (players.length < 2) return null;
-    const st = Engine.newRound(players, {
+    const st = Engine.newRound(cur.players.map(p => ({ ...p, disconnected: false })), {
       matchTarget: cur.matchTarget, points: cur.points, roundNo: cur.roundNo, first: cur.roundNo || 0
     });
+    if (!st) return null;
     return { ...gamePatch(st), endVotes: [] };
   });
 }
@@ -886,12 +967,12 @@ async function handleNextRound() {
 // GAME SCREEN
 // ============================================================
 
-// The state drawn last time; fx.js compares it with the new one to animate what changed
+/// The state drawn last time; fx.js compares it with the new one to animate what changed
 let fxPrevState = null;
 
 function renderGame(state) {
   const firstDraw = !fxPrevState;   // first draw after (re)joining: show, don't animate
-  // A card whose colour/power I was choosing can't be played any more
+  // A card whose colour I was choosing can't be played any more
   if (colorDialogFor === 'play' && !isMyTurn(state)) closeColorDialog();
   renderTopCard(state);
   renderDrawPile(state);
@@ -902,11 +983,11 @@ function renderGame(state) {
   renderLastCardOverlay(state);
   renderTurnActions(state);
   renderEndVoteStatus(state);
-  renderChallengePanel(state);
+  renderPassPanel(state);
   renderChatPanel(state);
   renderSpeechBubbles(state);
 
-  // Flying cards, power effects, stamps, sounds for whatever changed (fx.js)
+  // Flying cards, team effects, stamps, sounds for whatever changed (fx.js)
   if (fxPrevState && fxPrevState !== state) FX.onState(fxPrevState, state);
   fxPrevState = state;
   // Faces, turn banner, timer, 2-card alert, hand badges… (extras.js)
@@ -919,9 +1000,7 @@ function renderTopCard(state) {
   const top = state.discard?.[state.discard.length - 1];
   if (!top) { el.innerHTML = ''; return; }
   const ringed = top.c === WILD_COLOR && CARD_HEX[state.topColor];
-  // was it played on its flex side? (the last play event says so)
-  const flexUp = !!state.ev?.list?.some(e => e.t === 'play' && e.flex && e.card?.id === top.id);
-  el.innerHTML = cardHTML(top, { cls: 'top', chosen: ringed ? state.topColor : null, flexUp });
+  el.innerHTML = cardHTML(top, { cls: 'top', chosen: ringed ? state.topColor : null });
   el.dataset.color = state.topColor || '';
 }
 
@@ -939,38 +1018,69 @@ function renderDrawPile(state) {
   area.style.opacity = canDraw || !isMyTurn(state) ? '1' : '.55';
 }
 // The back of a card (draw pile, cards flying from the deck)
-const backHTML = () => `<div class="card card-back-cham"><span class="cb-scale"></span><span class="cb-mark">🦎</span></div>`;
+const backHTML = () => `<div class="card card-back"><span class="back-uno">UNO</span><span class="back-party">TEAMS</span></div>`;
+
+// The other players, in seat order starting with the one after me — so my partner (who
+// sits across from me) lands in the middle of the row
+function seatsAfterMe(state) {
+  const n = state.players.length;
+  const me = state.players.findIndex(p => p.id === localUid);
+  if (me < 0) return state.players.slice();
+  return Array.from({ length: n - 1 }, (_, k) => state.players[(me + 1 + k) % n]);
+}
 
 function renderOpponents(state) {
   const row = document.getElementById('opponents-row');
-  const others = state.players.filter(p => p.id !== localUid);
+  const others = seatsAfterMe(state);
   const acting = whoActs(state);
+  const waiting = Engine.waitingFor(state);
   const nextId = state.players[nextPlayerIndex(state)]?.id;
+  const mate = myMate(state);
+  const picking = state.phase?.k === 'swap';
   row.innerHTML = others.map(p => {
-    const isCurrent = acting === p.id;
+    const isCurrent = !state.phase && acting === p.id;
+    const isWaitedOn = !!state.phase && waiting.includes(p.id);
     const isDisconnected = !!p.disconnected;
     const isSpeaking = !!speakingStates[p.id];
     const hasVoice = !!peerConns[p.id];
-    // a little fan of face-down cards (up to 12) — nobody sees anyone else's cards
+    // a little fan of face-down cards — nobody sees anyone else's cards (not even their partner's)
     const n = p.cardCount || 0;
     // new look: the backs fan out (--k = position, --n = how many are shown)
     const shown = Math.min(n, 10);
-    const backs = Array.from({ length: shown }, (_, k) => `<span class="mini-back" style="--k:${k}"></span>`).join('');
+    const backs = Array.from({ length: shown }, (_, k) => `<span class="card-back mini" style="--k:${k}"></span>`).join('');
     const more = n > 10 ? `<span class="mini-more">+${n - 10}</span>` : '';
     const nearWin = n > 0 && n <= 2;
+    const out = n === 0;
     const reconnecting = !isDisconnected && !isBot(p.id) && presenceMissingSince[p.id];
-    const pts = state.matchTarget ? `<span class="opp-points">${state.points?.[p.id] || 0} pts</span>` : '';
-    return `<div class="opponent ${isCurrent ? 'active-player' : ''} ${p.id === nextId && !isCurrent ? 'next-player' : ''} ${nearWin ? 'near-win' : ''}
+    const pts = state.matchTarget ? `<span class="opp-points">${state.points?.[p.team] || 0} pts</span>` : '';
+    const pill = isCurrent ? `<span class="seat-pill seat-pill-turn">${t('seat.turn')}</span>`
+      : isWaitedOn ? `<span class="seat-pill seat-pill-wait">${t(picking ? 'seat.picking' : 'seat.passing')}</span>`
+      : n === 1 ? `<span class="seat-pill seat-pill-uno">${t('fx.uno')}</span>`
+      : out ? `<span class="seat-pill seat-pill-out">${t('team.out')}</span>` : '';
+    return `<div class="opponent ${isCurrent || isWaitedOn ? 'active-player' : ''} ${p.id === nextId && !isCurrent ? 'next-player' : ''} ${nearWin ? 'near-win' : ''}
+                                ${p.id === mate ? 'is-mate' : ''} ${out ? 'is-out' : ''}
                                 ${isDisconnected ? 'player-disconnected' : ''} ${isSpeaking ? 'voice-speaking' : ''}"
-               data-uid="${esc(p.id)}">
-      ${isCurrent ? `<span class="seat-pill seat-pill-turn">${t('seat.turn')}</span>` : n === 1 ? `<span class="seat-pill seat-pill-uno">${t('fx.uno')}</span>` : ''}
+               data-uid="${esc(p.id)}" style="--team:${TEAM_HEX[p.team] || '#fff'}">
+      ${pill}
       <div class="seat-ring">${typeof seatFaceHTML === 'function' ? seatFaceHTML(state, p) : ''}</div>
-      <div class="opponent-name">${tokenHTML(Engine.hasPower(state, p.id))}${esc(p.name)}${isDisconnected ? ` <span class="dc-badge">${t('lob.dc')}</span>` : ''}${hasVoice ? ' <span class="voice-mic-icon">🎤</span>' : ''}</div>
+      <div class="opponent-name">${teamTagHTML(p.team, true)}${esc(p.name)}${isDisconnected ? ` <span class="dc-badge">${t('lob.dc')}</span>` : ''}${hasVoice ? ' <span class="voice-mic-icon">🎤</span>' : ''}</div>
+      ${p.id === mate ? `<span class="mate-badge">${t('team.mateShort')}</span>` : ''}
       ${reconnecting ? `<span class="rc-badge" data-since="${presenceMissingSince[p.id]}" data-turn="${isCurrent ? 1 : 0}">${t('rc.label')}</span>` : ''}
       <div class="opponent-cards" style="--n:${shown}">${backs}${more}</div>
-      <div class="opponent-count">${t(n === 1 ? 'seat.card' : 'seat.cards', { n })}${pts}</div>
+      <div class="opponent-count" title="${out ? esc(t('team.outLong')) : ''}">${t(n === 1 ? 'seat.card' : 'seat.cards', { n })}${pts}</div>
     </div>`;
   }).join('');
+  // Many players on a narrow screen: smaller seats, and the row scrolls so my partner
+  // (across the table, in the middle) is in view — once per round, so a player's own scrolling stays
+  row.classList.toggle('many', others.length >= 5);
+  const key = `${currentRoomId}|${state.gameNo || 0}|${state.roundNo || 0}`;
+  if (row.scrollWidth > row.clientWidth + 4 && row.dataset.centered !== key) {
+    const seat = row.querySelector('.opponent.is-mate');
+    if (seat) {
+      row.dataset.centered = key;
+      row.scrollLeft = seat.offsetLeft - (row.clientWidth - seat.offsetWidth) / 2;
+    }
+  }
 }
 
 function renderStatus(state) {
@@ -979,9 +1089,18 @@ function renderStatus(state) {
   const mine = acting === localUid;
   el.classList.toggle('my-turn', mine);
   el.classList.toggle('other-turn', !mine);
-  const name = state.players.find(p => p.id === acting)?.name || '?';
+  const name = playerName(state, acting);
   const ph = state.phase;
-  if (ph?.k === 'challenge') el.textContent = mine ? t('st.youDecide') : t('st.decides', { name });
+  const tp = state.teamPlay;
+  const myCards = (state.hands?.[localUid] || []).length;
+  if (ph?.k === 'swap') el.textContent = mine ? t('st.swapMe') : t('st.swapWait');
+  else if (ph?.k === 'give') el.textContent = mine
+    ? t('st.giveMe', { n: ph.n, name: playerName(state, ph.to) })
+    : t('st.giveWait', { name: playerName(state, ph.from), n: ph.n, mate: playerName(state, ph.to) });
+  else if (tp && tp.to === acting) el.textContent = mine
+    ? t('st.teamPlayMe', { name: playerName(state, tp.by) })
+    : t('st.teamPlayOther', { name });
+  else if (!mine && myCards === 0 && state.players.some(p => p.id === localUid)) el.textContent = t('st.outMe');
   else el.textContent = mine ? t('st.yourTurn') : t('st.turnOf', { name });
 
   const dirEl = document.getElementById('direction-indicator');
@@ -1009,15 +1128,17 @@ function renderHand(state) {
 
   const label = document.getElementById('hand-label');
   if (state.drawn?.pid === localUid) label.textContent = t('hand.drawnOk');
+  else if (!myHand.length && state.players.some(p => p.id === localUid)) label.textContent = t('hand.out');
   else label.textContent = myTurn ? t('hand.pick') : t('hand.count', { n: myHand.length });
 
-  // My ⚡ token: what it does and how it comes back
-  const mp = document.getElementById('my-power');
-  if (mp) {
-    const on = Engine.hasPower(state, localUid);
-    mp.className = `my-power ${on ? 'on' : 'off'}`;
-    mp.innerHTML = `${tokenHTML(on, true)}<span>${t(on ? 'tok.mineOn' : 'tok.mineOff')}</span>`;
-    mp.title = t(on ? 'tok.helpOn' : 'tok.helpOff');
+  // My team: the tag, and my partner's name with how many cards they hold
+  const mt = document.getElementById('my-team');
+  if (mt) {
+    const tm = myTeam(state), mate = state.players.find(p => p.id === myMate(state));
+    mt.style.setProperty('--team', TEAM_HEX[tm] || '#fff');
+    // the team tag says which team; the words are my partner's name and how many cards they hold
+    mt.title = tm ? `${t('team.word')} ${t('team.' + tm)}` : '';
+    mt.innerHTML = tm ? `${teamTagHTML(tm)}<span>${mate ? `${esc(mate.name)} <b>${mate.cardCount}🃏</b>` : esc(t('team.' + tm))}</span>` : '';
   }
 
   handEl.closest('.hand-area').classList.toggle('my-turn', myTurn);
@@ -1028,7 +1149,7 @@ function renderHand(state) {
 function renderTurnOrder(state, myTurn) {
   const toiEl = document.getElementById('turn-order-info');
   const n = state?.players?.length || 0;
-  if (n < 2) { toiEl.classList.add('hidden'); return; }
+  if (n < 2 || state.phase) { toiEl.classList.add('hidden'); return; }
   const curIdx = state.currentPlayerIndex;
   const dir = state.direction ?? 1;
   const prevIdx = Engine.nextActive(state, curIdx, -dir);
@@ -1058,15 +1179,14 @@ function logText(e) {
   const p = e.p || {};
   const out = {};
   for (const [k, v] of Object.entries(p)) out[k] = typeof v === 'string' ? esc(v) : v;
-  if (p.v) out.card = cardChip({ c: p.c, c2: p.c2 || undefined, v: p.v }) + (p.flex ? ` <span class="lc-flexside">🦎 ${esc(t('flex.short'))}</span>` : '');
+  if (p.v) out.card = cardChip({ c: p.c, v: p.v, pass: p.pass || undefined });
   if (p.color) out.color = colorChip(p.color);
   return t(e.k, out);
 }
 const LOG_CLASS = {
-  'log.caught': 'log-uno', 'log.shout': 'log-uno-call', 'log.challengeWon': 'log-truth',
-  'log.challengeLost': 'log-lie', 'log.win': 'log-uno-call',
-  'log.skipAll': 'log-power', 'log.reverseSkip': 'log-power', 'log.flexDraw2': 'log-power', 'log.flexAllDraw': 'log-power',
-  'log.target': 'log-power', 'log.wildFlip': 'log-charge', 'log.flipCard': 'log-charge', 'log.allRed': 'log-charge'
+  'log.caught': 'log-uno', 'log.shout': 'log-uno-call', 'log.shoutMate': 'log-uno-call', 'log.win': 'log-uno-call',
+  'log.teamPlay': 'log-power', 'log.team4': 'log-power', 'log.teamPlayFail': 'log-uno',
+  'log.out': 'log-charge', 'log.outStay': 'log-charge', 'log.tagBack': 'log-charge', 'log.swap': 'log-charge', 'log.swapStart': 'log-charge'
 };
 function renderLog(state) {
   const el = document.getElementById('game-log');
@@ -1087,10 +1207,11 @@ async function selectCard(cardId) {
   const i = hand.findIndex(c => c.id === cardId);
   const card = hand[i];
   if (!card) return;
+  // Passing cards to my partner: the pass window is where cards are picked
+  if (mustPass(state)) { togglePassPick(cardId); return; }
   // Guided first game: only the card the lesson asks for (tutorial.js)
   if (LOCAL_GAME && !tutorialAllowsCard(card)) return;
   if (!isMyTurn(state)) {
-    if (state.phase && whoActs(state) === localUid) return;   // the panel is asking something
     FX.shake(document.querySelector(`#player-hand .card[data-id="${cardId}"]`));
     return;
   }
@@ -1099,8 +1220,8 @@ async function selectCard(cardId) {
     else showNotice('✋', t('notice.cantTitle'), t('notice.cantBody', { color: colorChip(state.topColor) }));
     return;
   }
-  // Wilds ask for a colour; a flex card asks which side (only while my Power Card is green)
-  if (card.c === WILD_COLOR || Engine.canFlex(card, state, localUid)) { openPlayDialog(card); return; }
+  // Wilds ask for a colour
+  if (card.c === WILD_COLOR) { openPlayDialog(card); return; }
   await doMove({ t: 'play', id: card.id });
 }
 
@@ -1118,25 +1239,18 @@ async function doMove(move) {
   }
 }
 
-// ---- The play window (bottom sheet) ----
-// Wild: pick the colour. Flex card (Power Card green): normal side or flex side — the flex
-// side of a Target Draw 2 / Wild Draw Four also asks who draws. A flex number/action card
-// whose normal side doesn't fit can only go down on its flex side, so the switch is locked on.
-let playPick = { card: null, color: null, flex: false, target: null };
+// ---- The play window (bottom sheet): pick the colour for a wild ----
+// Team wilds also say what will happen (who gets the turn, who draws).
+let playPick = { card: null, color: null };
 
 function openPlayDialog(card) {
   const state = roomState;
   const rest = (state.hands?.[localUid] || []).filter(c => c.id !== card.id);
   colorDialogFor = 'play';
-  const mustFlex = !Engine.isPlayable(card, state);
-  playPick = { card, color: card.c === WILD_COLOR ? Engine.bestColor(rest) : null, flex: mustFlex, target: null };
-  // a target to start with: whoever is closest to winning
-  const rivals = state.players.filter(p => p.id !== localUid && !p.disconnected).sort((a, b) => a.cardCount - b.cardCount);
-  playPick.target = rivals[0]?.id ?? null;
+  playPick = { card, color: Engine.bestColor(rest) };
   // the guided game shows what its lesson wants already picked (tutorial.js)
   if (LOCAL_GAME && typeof tutorialPresetPlay === 'function') tutorialPresetPlay(playPick);
-  const title = document.getElementById('claim-dialog-title');
-  title.textContent = card.c === WILD_COLOR ? t('claim.wildTitle', { card: cardName(card) }) : t('claim.flexTitle');
+  document.getElementById('claim-dialog-title').textContent = t('claim.wildTitle', { card: cardName(card) });
   document.getElementById('actual-card-preview').innerHTML = cardHTML(card, { cls: 'preview' });
   renderPlayDialog();
   document.getElementById('claim-dialog').classList.remove('hidden');
@@ -1145,74 +1259,42 @@ function openPlayDialog(card) {
 function renderPlayDialog() {
   const state = roomState, card = playPick.card;
   if (!state || !card) return;
-  const wild = card.c === WILD_COLOR;
-  // a Wild Draw Four on its normal side is only fair with nothing of the colour (or a wild) in hand
-  const warn = document.getElementById('claim-warning');
-  const rest = (state.hands?.[localUid] || []).filter(c => c.id !== card.id);
-  const unfair = card.v === 'wild4' && !playPick.flex && Engine.hadColor(rest, state.topColor);
-  warn.innerHTML = unfair ? t('claim.unfair', { color: colorChip(state.topColor) }) : '';
-  warn.classList.toggle('hidden', !unfair);
-  // colours: wilds only (a flex card keeps its normal colour)
+  document.getElementById('claim-warning').classList.add('hidden');
   const picker = document.getElementById('claim-color-picker');
-  picker.innerHTML = wild ? COLORS.map(c =>
+  picker.innerHTML = COLORS.map(c =>
     `<button class="color-btn ${playPick.color === c ? 'selected' : ''}" style="--btn:${CARD_HEX[c]}"
       onclick="setClaimColor('${c}')" title="${esc(t('color.' + c))}" aria-label="${esc(t('color.' + c))}"><span>${CB_GLYPH[c]}</span></button>`
-  ).join('') : '';
-  picker.classList.toggle('hidden', !wild);
-
+  ).join('');
+  picker.classList.remove('hidden');
+  // what a team wild will do
   const box = document.getElementById('power-box');
-  if (!card.flex) { box.classList.add('hidden'); box.innerHTML = ''; updatePlayButton(); return; }
-  box.classList.remove('hidden');
-  const green = Engine.hasPower(state, localUid);
-  const can = Engine.canFlex(card, state, localUid);
-  const mustFlex = !Engine.isPlayable(card, state);
-  // the two sides, side by side
-  const normalWhy = t('side.normal.' + (isNumber(card.v) ? 'number' : card.v), { color: colorChip(card.c) });
-  const flexWhy = t('side.flex.' + (isNumber(card.v) ? 'number' : card.v), { color: card.c2 ? colorChip(card.c2) : '', keep: colorChip(card.c) });
-  let extra = '';
-  if (playPick.flex && Engine.TARGETED[card.v]) {
-    const rivals = state.players.filter(p => p.id !== localUid && !p.disconnected);
-    extra = `<div class="pw-pick"><span class="pw-pick-label">${t('flex.who', { n: Engine.TARGETED[card.v] })}</span><div class="pw-people">${rivals.map(p =>
-      `<button type="button" class="pw-person ${playPick.target === p.id ? 'sel' : ''}" onclick="setPlayOpt('target', '${esc(p.id)}')">${esc(p.name)} <small>${p.cardCount}🃏</small></button>`).join('')}</div></div>`;
+  let info = '';
+  if (card.v === 'teamPlay') {
+    const mate = myMate(state);
+    info = mate && !Engine.isOut(state, mate) ? t('claim.teamPlay', { name: esc(playerName(state, mate)) }) : t('claim.teamPlayNone');
+  } else if (card.v === 'team4') {
+    const me = state.players.findIndex(p => p.id === localUid);
+    const nxt = state.players[Engine.nextActive(state, me)]?.id;
+    info = t('claim.team4', { name: esc(playerName(state, nxt)), mate: esc(playerName(state, Engine.partnerOf(state, nxt))) });
   }
-  box.innerHTML = `
-    <div class="side-pick">
-      <button type="button" class="side-opt ${playPick.flex ? '' : 'sel'}" ${mustFlex ? 'disabled' : ''} onclick="setPlaySide(false)">
-        <b>${t('flex.normal')}</b><small>${mustFlex ? t('flex.normalNo') : normalWhy}</small></button>
-      <button type="button" class="side-opt flex ${playPick.flex ? 'sel' : ''}" ${can ? '' : 'disabled'} onclick="setPlaySide(true)">
-        <b>🦎 ${t('flex.flexSide')} ${tokenHTML(green)}</b><small>${can ? flexWhy : t('tok.helpOff')}</small></button>
-    </div>
-    ${playPick.flex ? `<p class="pw-note">${t('flex.cost')}</p>` : ''}${extra}`;
+  box.innerHTML = info ? `<p class="pw-note">${info}</p>` : '';
+  box.classList.toggle('hidden', !info);
   updatePlayButton();
 }
-// The move the window describes — null while something is missing (a colour, a target)
+// The move the window describes — null while the colour is missing
 function playMoveFromDialog() {
   const card = playPick.card;
-  if (!card || !roomState) return null;
-  const move = { t: 'play', id: card.id };
-  if (card.c === WILD_COLOR) { if (!playPick.color) return null; move.color = playPick.color; }
-  if (playPick.flex) {
-    move.flex = true;
-    if (Engine.TARGETED[card.v]) { if (!playPick.target) return null; move.target = playPick.target; }
-  }
-  return move;
+  if (!card || !roomState || !playPick.color) return null;
+  return { t: 'play', id: card.id, color: playPick.color };
 }
 function updatePlayButton() {
   const btn = document.getElementById('claim-play');
   if (btn) btn.disabled = !playMoveFromDialog();
 }
 function setClaimColor(color) { playPick.color = color; renderPlayDialog(); FX.play('select'); }
-function setPlaySide(flex) {
-  if (flex && !Engine.canFlex(playPick.card, roomState, localUid)) return;
-  if (!flex && !Engine.isPlayable(playPick.card, roomState)) return;
-  playPick.flex = flex;
-  FX.play(flex ? 'charge' : 'select');
-  renderPlayDialog();
-}
-function setPlayOpt(key, value) { playPick[key] = value; FX.play('select'); renderPlayDialog(); }
 function closeColorDialog() {
   colorDialogFor = null;
-  playPick = { card: null, color: null, flex: false, target: null };
+  playPick = { card: null, color: null };
   document.getElementById('claim-dialog').classList.add('hidden');
 }
 function cancelPlay() { closeColorDialog(); }
@@ -1271,7 +1353,9 @@ async function handleDraw() {
   if (LOCAL_GAME && typeof tutorialAllowsDraw === 'function' && !tutorialAllowsDraw()) return;
   const hand = state.hands?.[localUid] || [];
   if (hand.some(c => Engine.isPlayable(c, state)) && !LOCAL_GAME) {
-    const ok = await showDrawConfirm('white', '✋', t('draw.haveTitle'), t('draw.haveBody'));
+    // a Wild Team Play handed me the turn: drawing without playing makes my partner draw 2
+    const tp = state.teamPlay?.to === localUid;
+    const ok = await showDrawConfirm('white', '✋', t('draw.haveTitle'), tp ? t('draw.teamPlayBody') : t('draw.haveBody'));
     if (!ok) return;
   }
   await doMove({ t: 'draw' });
@@ -1283,71 +1367,129 @@ async function handlePassTurn() {
 }
 
 // ============================================================
-// WILD +4 — accept or challenge
+// PASSING CARDS TO MY PARTNER — the first pass, the 🔁 symbol swap, and handing over
+// half my cards when my partner goes out (or I draw while they're out)
 // ============================================================
 
-function renderChallengePanel(state) {
+let passPick = [];          // card ids I've ticked in the pass window
+let passKey = null;         // which pass the ticks belong to (reset when a new one starts)
+
+function passNeed(state) {
+  const ph = state.phase;
+  return ph?.k === 'give' ? ph.n : 1;
+}
+function togglePassPick(cardId) {
+  const state = roomState;
+  if (!mustPass(state)) return;
+  // Guided first game: only the card the lesson asks for (tutorial.js)
+  if (LOCAL_GAME && !tutorialAllowsCard({ id: cardId })) return;
+  const need = passNeed(state);
+  if (passPick.includes(cardId)) passPick = passPick.filter(id => id !== cardId);
+  else if (need === 1) passPick = [cardId];
+  else if (passPick.length < need) passPick = [...passPick, cardId];
+  FX.play('select');
+  renderPassPanel(state);
+  if (LOCAL_GAME && typeof tutorialRender === 'function') tutorialRender(state);
+}
+async function confirmPass() {
+  const state = roomState;
+  if (!mustPass(state) || passPick.length !== passNeed(state)) return;
+  const move = state.phase.k === 'give' ? { t: 'give', ids: passPick.slice() } : { t: 'swap', id: passPick[0] };
+  passPick = [];
+  await doMove(move);
+}
+
+function renderPassPanel(state) {
   const el = document.getElementById('challenge-area');
   const ph = state.phase;
-  if (ph?.k !== 'challenge') { el.classList.add('hidden'); return; }
-  el.classList.remove('hidden');
-  const content = document.getElementById('challenge-content');
-  const byName = state.players.find(p => p.id === ph.by)?.name || '?';
-  const tName = state.players.find(p => p.id === ph.target)?.name || '?';
-  const what = t('card.' + ph.kind);
-  const amount = t('ch.take4');
-  if (ph.target !== localUid) {
-    content.innerHTML = `<p class="w4c-wait">⏳ ${ph.by === localUid
-      ? t('ch.waitMine', { t: esc(tName), card: esc(what) })
-      : t('ch.waitOther', { t: esc(tName), c: esc(byName), card: esc(what) })}</p>`;
+  const key = ph ? `${ph.k}|${ph.why}|${ph.from || ''}|${(ph.pids || []).join()}|${state.roundNo}|${state.gameNo || 0}` : null;
+  if (key !== passKey) { passKey = key; passPick = []; }
+  if (!ph || !mustPass(state)) {
+    // I've already picked (or it's not my pass): just a note while the others choose
+    const content = document.getElementById('challenge-content');
+    if (ph?.k === 'swap' && ph.pids.includes(localUid) && ph.picks?.[localUid] != null) {
+      const left = Engine.waitingFor(state).map(id => esc(playerName(state, id))).join(', ');
+      content.innerHTML = `<p class="w4c-wait">${t('pass.waiting', { names: left })}</p>`;
+      el.classList.remove('hidden');
+      el.classList.add('pass-waiting');
+    } else {
+      el.classList.add('hidden');
+      el.classList.remove('pass-waiting');
+    }
     return;
   }
-  const byCards = state.players.find(p => p.id === ph.by)?.cardCount ?? '?';
+  el.classList.remove('hidden', 'pass-waiting');
+  const content = document.getElementById('challenge-content');
+  const hand = state.hands?.[localUid] || [];
+  const need = passNeed(state);
+  let title, body;
+  if (ph.k === 'swap') {
+    const mate = playerName(state, myMate(state));
+    title = t(ph.why === 'start' ? 'pass.startTitle' : 'pass.symTitle', { name: esc(mate) });
+    body = t(ph.why === 'start' ? 'pass.startBody' : 'pass.symBody');
+  } else {
+    title = t(ph.why === 'tag' ? 'give.tagTitle' : 'give.outTitle', { name: esc(playerName(state, ph.to)) });
+    body = t('give.body', { n: need });
+  }
+  // keep only ticks for cards still in my hand
+  passPick = passPick.filter(id => hand.some(c => c.id === id));
+  const btn = ph.k === 'swap' ? t('pass.btn') : t('give.btn', { k: passPick.length, n: need });
   content.innerHTML = `
-    <p class="w4c-title">${t('ch.title', { c: esc(byName), card: esc(what), color: colorChip(state.topColor) })}</p>
-    <p class="w4c-subtitle">${t('ch.rule', { prev: colorChip(ph.prevColor), n: byCards })}</p>
-    <div class="ch-options">
-      <div class="ch-opt"><b>${t('ch.acceptT')}</b><span>${amount}</span></div>
-      <div class="ch-opt"><b>${t('ch.challengeT')}</b><span>${t('ch.challengeWhy4', { c: esc(byName) })}</span></div>
-    </div>
+    <p class="w4c-title">${title}</p>
+    <p class="w4c-subtitle">${body}</p>
+    <div class="w4c-hand pass-hand">${hand.map(c => cardHTML(c, {
+      cls: passPick.includes(c.id) ? 'pass-sel' : '',
+      attrs: ` data-id="${c.id}" onclick="togglePassPick(${c.id})"`
+    })).join('')}</div>
     <div class="w4c-btns">
-      <button class="btn btn-ghost" onclick="doMove({t:'accept'})">${t('ch.accept')}</button>
-      <button class="btn btn-secondary btn-challenge" onclick="doMove({t:'challenge'})">⚖️ ${t('ch.challenge')}</button>
+      <button class="btn btn-primary" ${passPick.length === need ? '' : 'disabled'} onclick="confirmPass()">${btn}</button>
     </div>`;
 }
 
 // ============================================================
-// ¡ÚLTIMA! — shout when you're down to one card, or get caught (+2)
+// ¡UNO! — shout when you (or your partner) are down to one card, or catch a player of
+// another team who forgot (+2)
 // ============================================================
 
 let botShoutTimer = null, botShoutFor = null;
 function renderLastCardOverlay(state) {
   const overlay = document.getElementById('uno-call-overlay');
-  const u = state.uno;
-  if (!u || state.status !== 'playing') {
+  const list = state.uno || [];
+  if (!list.length || state.status !== 'playing' || !state.players.some(p => p.id === localUid)) {
     overlay.classList.add('hidden');
     return;
   }
-  const who = state.players.find(p => p.id === u.pid);
-  if (!who) { overlay.classList.add('hidden'); return; }
+  const mate = myMate(state);
+  const mine = myTeam(state);
   const label = document.getElementById('uno-call-label');
   const btn   = document.getElementById('uno-call-btn');
-  if (u.pid === localUid) {
+  // me first, then my partner, then a player of another team I could catch
+  const forMe = list.find(u => u.pid === localUid);
+  const forMate = list.find(u => u.pid === mate);
+  const rival = list.find(u => Engine.teamOf(state, u.pid) !== mine);
+  if (forMe) {
     label.textContent = t('uno.mine');
     btn.textContent   = t('uno.shout');
-    btn.dataset.kind = 'shout';
-  } else if (state.players.some(p => p.id === localUid)) {
-    label.textContent = t('uno.other', { name: who.name });
-    btn.textContent   = t('uno.callOn', { name: who.name.toUpperCase() });
-    btn.dataset.kind = 'catch';
-  }
+    btn.dataset.kind = 'shout'; btn.dataset.pid = localUid;
+  } else if (forMate) {
+    const name = playerName(state, mate);
+    label.textContent = t('uno.mate', { name });
+    btn.textContent   = t('uno.shoutFor', { name: stripLeadingEmoji(name).toUpperCase() });
+    btn.dataset.kind = 'shout'; btn.dataset.pid = mate;
+  } else if (rival) {
+    const name = playerName(state, rival.pid);
+    label.textContent = t('uno.other', { name });
+    btn.textContent   = t('uno.callOn', { name: name.toUpperCase() });
+    btn.dataset.kind = 'catch'; btn.dataset.pid = rival.pid;
+  } else { overlay.classList.add('hidden'); return; }
   overlay.classList.remove('hidden');
 }
 async function handleUnoCallBtn() {
-  const kind = document.getElementById('uno-call-btn').dataset.kind;
+  const btn = document.getElementById('uno-call-btn');
+  const kind = btn.dataset.kind, pid = btn.dataset.pid;
   document.getElementById('uno-call-overlay').classList.add('hidden');
   if (LOCAL_GAME && typeof tutorialAllowsShout === 'function' && !tutorialAllowsShout(kind)) return;
-  await sendMove({ t: kind === 'shout' ? 'shout' : 'catch' });
+  await sendMove({ t: kind === 'shout' ? 'shout' : 'catch', pid });
 }
 
 // ============================================================
@@ -2157,7 +2299,7 @@ function notify(title, body) {
   if (!notifEnabled || Notification.permission !== 'granted') return;
   if (!document.hidden && document.hasFocus()) return;
   playNotifSound();
-  try { new Notification(title, { body, tag: 'camaleon' }); } catch (_) {}
+  try { new Notification(title, { body, tag: 'unoteams' }); } catch (_) {}
 }
 
 function checkNotifications(state) {
@@ -2165,7 +2307,7 @@ function checkNotifications(state) {
   prevNotifState = {
     status: state.status,
     acting: whoActs(state),
-    unoFor: state.uno?.pid || null
+    unoFor: (state.uno || []).some(u => u.pid === localUid) ? localUid : null
   };
   if (!prev) return;
 
@@ -2175,17 +2317,17 @@ function checkNotifications(state) {
     return;
   }
   if (prev.status !== 'ended' && state.status === 'ended') {
-    const won = state.winner === localUid;
+    const won = (state.winnerIds || []).includes(localUid);
     notify(won ? t('nt.won') : t('nt.over'),
            won ? t('nt.congrats') : t('nt.whoWon', { name: state.winnerName || '?' }));
     return;
   }
   if (state.status !== 'playing') return;
   if (prev.acting !== localUid && whoActs(state) === localUid) {
-    notify(t('nt.yourTurn'), state.phase?.k === 'challenge' ? t('nt.challenge') : t('nt.yourTurnBody'));
+    notify(t('nt.yourTurn'), state.phase ? t('nt.pick') : t('nt.yourTurnBody'));
     return;
   }
-  if (!prev.unoFor && state.uno?.pid === localUid) notify(t('uno.shout'), t('nt.uno'));
+  if (!prev.unoFor && (state.uno || []).some(u => u.pid === localUid)) notify(t('uno.shout'), t('nt.uno'));
 }
 
 // ============================================================
@@ -2199,10 +2341,11 @@ async function backToLobby() {
     winner: null, winnerName: null, winnerReason: null, matchWinner: null,
     endVotes: [],
     hands: {}, drawPile: [], discard: [], log: [],
-    phase: null, drawn: null, uno: null, points: {},
+    phase: null, queue: [], drawn: null, uno: [], teamPlay: null, points: {},
     prevPlayerNames: cur.players.map(p => p.name),
     readyVotes: [],
-    players: cur.players.filter(p => !p.disconnected).map(p => ({ ...p, cardCount: 0 }))
+    // the same teams stay together; bots that stood in for someone who left go away
+    players: cur.players.filter(p => !p.disconnected && !p.standInFor).map(p => ({ ...p, cardCount: 0 }))
   }));
 }
 
@@ -2252,14 +2395,16 @@ async function handleLeaveGame() {
   if (!ok) return;
 
   const roomId = currentRoomId;
-  // My cards go back under the deck and the turn moves on (engine.removePlayer)
+  // A bot takes my seat (cards, team and all), so my partner can play on (takeSeat)
   const r = await mutateRoom(cur => {
     const left = cur.players.filter(p => p.id !== localUid);
     if (!left.some(p => !isBot(p.id))) return 'delete';   // only bots would be left
-    const st = Engine.removePlayer(cur, localUid);
-    const update = { ...gamePatch(st), endVotes: (cur.endVotes || []).filter(id => id !== localUid) };
-    if (cur.hostId === localUid) update.hostId = left.find(p => !isBot(p.id) && !p.disconnected)?.id || left.find(p => !isBot(p.id)).id;
-    return update;
+    if (cur.status === 'lobby') {
+      const update = { players: left };
+      if (cur.hostId === localUid) update.hostId = left.find(p => !isBot(p.id))?.id;
+      return update;
+    }
+    return standInPatch(cur, localUid);
   });
   if (r === 'delete') db.collection('rooms').doc(roomId).delete().catch(() => {});
   leaveRoomLocally();
@@ -2300,15 +2445,21 @@ function renderEndVoteStatus(state) {
 // WINNER SCREEN
 // ============================================================
 
-// Everyone's cards left and points in hand, best first
+// Every team's cards left and points in hand, the winners first
 function computeStandings(state) {
-  return (state.players || [])
-    .map(p => {
+  const teams = TEAMS.filter(tm => (state.players || []).some(p => p.team === tm));
+  return teams.map(tm => {
+    const members = state.players.filter(p => p.team === tm).map(p => {
       const hand = state.hands?.[p.id] || [];
-      const pts = hand.reduce((s, c) => s + Engine.cardPoints(c), 0);
-      return { id: p.id, name: p.name, cards: hand.length, points: pts, total: state.points?.[p.id] || 0, hand };
-    })
-    .sort((a, b) => (b.id === state.winner) - (a.id === state.winner) || a.cards - b.cards || a.points - b.points);
+      return { id: p.id, name: p.name, hand, cards: hand.length, points: hand.reduce((s, c) => s + Engine.cardPoints(c), 0) };
+    });
+    return {
+      team: tm, members,
+      cards: members.reduce((s, m) => s + m.cards, 0),
+      points: members.reduce((s, m) => s + m.points, 0),
+      total: state.points?.[tm] || 0
+    };
+  }).sort((a, b) => (b.team === state.winner) - (a.team === state.winner) || a.cards - b.cards || a.points - b.points);
 }
 
 function renderWinner(state) {
@@ -2321,23 +2472,26 @@ function renderWinner(state) {
   document.getElementById('winner-error')?.classList.add('hidden');
 
   const match = !!state.matchTarget;
-  const champion = state.matchWinner ? state.players.find(p => p.id === state.matchWinner) : null;
+  const champion = state.matchWinner || null;
   if (champion) titleEl.textContent = t('w.champion');
   else if (reason === 'vote') titleEl.textContent = t('w.vote');
   else if (reason === 'lastPlayer') titleEl.textContent = t('w.last');
   else titleEl.textContent = match ? t('w.roundWin', { n: state.roundNo || 1 }) : t('w.winner');
-  nameEl.textContent = champion ? champion.name : (state.winnerName || '?');
+  const wt = champion || state.winner;
+  nameEl.innerHTML = wt ? `${teamTagHTML(wt)} ${esc(t('team.' + wt))}<small class="winner-team-names">${esc(Engine.teamName(state, wt))}</small>` : '?';
+  nameEl.style.setProperty('--team', TEAM_HEX[wt] || '#fff');
   subEl.innerHTML = state.roundPoints
     ? t(match ? 'w.ptsMatch' : 'w.pts', { n: state.roundPoints, target: state.matchTarget })
     : '';
 
-  // Who had what left
+  // What every team had left
   standingsEl.innerHTML = `<div class="standing-head">${t(match ? 'w.tableMatch' : 'w.table')}</div>` +
-    computeStandings(state).map((s, i) => `<div class="standing-row ${s.id === state.winner ? 'winner-row' : ''} ${s.id === state.matchWinner ? 'champ-row' : ''}">
+    computeStandings(state).map((s, i) => `<div class="standing-row standing-team ${s.team === state.winner ? 'winner-row' : ''} ${s.team === state.matchWinner ? 'champ-row' : ''}" style="--team:${TEAM_HEX[s.team]}">
       <span class="standing-rank">#${i + 1}</span>
-      <span class="standing-name">${esc(s.name)}
-        <span class="standing-hand">${s.hand.slice(0, 12).map(c => miniHTML(c)).join('')}${s.hand.length > 12 ? '…' : ''}</span></span>
-      <span class="standing-stats">${s.id === state.winner ? '🏆' : t('w.standing', { c: s.cards, p: s.points })}${match ? `<b class="standing-total">${s.total}</b>` : ''}</span>
+      <span class="standing-name"><span class="standing-team-name">${teamTagHTML(s.team, true)} ${esc(t('team.' + s.team))}</span>
+        ${s.members.map(m => `<span class="standing-member">${esc(m.name)}
+          <span class="standing-hand">${m.hand.slice(0, 10).map(c => miniHTML(c)).join('')}${m.hand.length > 10 ? '…' : ''}</span></span>`).join('')}</span>
+      <span class="standing-stats">${s.team === state.winner ? '🏆' : t('w.standing', { c: s.cards, p: s.points })}${match ? `<b class="standing-total">${s.total}</b>` : ''}</span>
     </div>`).join('');
   standingsEl.classList.remove('hidden');
 
@@ -2370,7 +2524,7 @@ async function handleJoinAnother() {
   leaveRoomLocally();
   if (!data.players.find(p => p.id === localUid)) {
     await db.collection('rooms').doc(code).update({
-      players: firebase.firestore.FieldValue.arrayUnion({ id: localUid, name: localName, cardCount: 0 })
+      players: firebase.firestore.FieldValue.arrayUnion({ id: localUid, name: localName, cardCount: 0, team: freeTeam(data.players) })
     });
   }
   currentRoomId = code;
@@ -2757,8 +2911,9 @@ function showVoiceJoinToast(msg) {
 // BOTS
 // Only the host's device runs them. Bots sit in the players list with ids that start
 // with 'bot_'. Their choices come from Engine.botMove (they only "see" what a person
-// at the table would: their own cards, card counts, the table and everybody's Power Cards),
-// and their moves are saved through sendMove like anyone else's.
+// at the table would: their own cards, card counts and the table — not even their
+// partner's cards), and their moves are saved through sendMove like anyone else's.
+// A bot also keeps the seat of a player who left ("stand-in"), until they come back.
 // ============================================================
 
 function isBot(uid) { return typeof uid === 'string' && uid.startsWith('bot_'); }
@@ -2766,22 +2921,21 @@ function botGenUid() { return 'bot_' + Math.random().toString(36).slice(2, 10); 
 
 // Personalities: each bot gets the next free one; its name shows who it is
 const BOT_PERSONAS = {
-  attacker:  { name: 'Petardo',   icon: '💥' },   // loves Draw Twos, skips and draw wilds
-  flexer:    { name: 'Pintas',    icon: '🦎' },   // uses flex sides whenever it can
-  saver:     { name: 'Ahorrador', icon: '🧐' },   // hoards wilds and keeps its Power Card green for the end
-  bluffer:   { name: 'Farolero',  icon: '🃏' },   // plays Wild Draw Four even when it shouldn't
-  balanced:  { name: 'Robo',      icon: '🤖' }
+  attacker:  { name: 'Petardo',   icon: '💥' },   // loves Draw Twos, skips and Team Draw Fours
+  teamer:    { name: 'Colega',    icon: '🤝' },   // hands the turn to its partner whenever it can
+  saver:     { name: 'Ahorrador', icon: '🧐' },   // hoards wilds for the end
+  balanced:  { name: 'Robo',      icon: '🤖' },
+  balanced2: { name: 'Chispa',    icon: '✨' }
 };
-const BOT_ORDER = ['attacker', 'flexer', 'saver', 'bluffer', 'balanced'];
+const BOT_ORDER = ['attacker', 'teamer', 'saver', 'balanced', 'balanced2'];
 // Levels (host picks in the lobby):
 //   random    chance of just playing any card it can
-//   challenge how well it reads a Wild Draw Four bluff (0 = guesses, 1 = sharp)
-//   shoutMs   how long it takes to shout ¡ÚLTIMA! for itself
-//   catch     chance it catches a person who forgot to shout, after catchMs
+//   shoutMs   how long it takes to shout ¡UNO! for itself (or for its partner)
+//   catch     chance it catches a player of another team who forgot to shout, after catchMs
 const BOT_LEVELS = {
-  easy:   { random: .4, challenge: .1,  shoutMs: 4500, catch: .25, catchMs: 5500 },
-  normal: { random: 0,  challenge: .5,  shoutMs: 2800, catch: .55, catchMs: 3800 },
-  hard:   { random: 0,  challenge: .85, shoutMs: 900,  catch: .9,  catchMs: 2200 }
+  easy:   { random: .4, shoutMs: 4500, catch: .25, catchMs: 5500 },
+  normal: { random: 0,  shoutMs: 2800, catch: .55, catchMs: 3800 },
+  hard:   { random: 0,  shoutMs: 900,  catch: .9,  catchMs: 2200 }
 };
 const botLevel = state => BOT_LEVELS[state?.botLevel] || BOT_LEVELS.normal;
 
@@ -2792,13 +2946,19 @@ function pickBotPersona(players) {
 function makeBot(players) {
   const persona = pickBotPersona(players);
   const P = BOT_PERSONAS[persona];
-  return { id: botGenUid(), name: getUniqueName(`${P.icon} ${P.name}`, players), cardCount: 0, isBot: true, persona };
+  return { id: botGenUid(), name: getUniqueName(`${P.icon} ${P.name}`, players), cardCount: 0, isBot: true, persona, team: freeTeam(players) };
 }
+// the engine knows four play styles; the extra name plays like 'balanced'
+const botStyle = p => (p?.persona === 'balanced2' ? 'balanced' : p?.persona) || 'balanced';
 
-async function handleAddBot() {
+async function handleAddBot(tm) {
   if (!roomState || roomState.hostId !== localUid) return;
-  await mutateRoom(cur => cur.players.length >= MAX_PLAYERS || cur.status !== 'lobby'
-    ? null : { players: [...cur.players, makeBot(cur.players)] });
+  await mutateRoom(cur => {
+    if (cur.players.length >= MAX_PLAYERS || cur.status !== 'lobby') return null;
+    const bot = makeBot(cur.players);
+    if (TEAMS.includes(tm) && cur.players.filter(p => p.team === tm).length < 2) bot.team = tm;
+    return { players: [...cur.players, bot] };
+  });
 }
 async function handleRemoveBot(botId) {
   if (!roomState || roomState.hostId !== localUid || !isBot(botId)) return;
@@ -2808,17 +2968,19 @@ async function handleRemoveBot(botId) {
 // ----- Bot timing -----
 let botTickTimer = null;
 let botTickRunning = false;
-let botUnoTimer = null, botUnoKey = null;
+let botUnoTimers = {};
+
+// The bots the game is waiting for right now (one on a turn, several while passing cards)
+const botsWaitedOn = state => Engine.waitingFor(state).filter(isBot);
 
 function scheduleBotTick(state) {
   if (!state || state.hostId !== localUid || state.status !== 'playing') return;
   if (!state.players.some(p => isBot(p.id))) return;
   scheduleBotLastCard(state);
-  const acting = whoActs(state);
-  if (!isBot(acting)) return;
+  if (!botsWaitedOn(state).length) return;
   clearTimeout(botTickTimer);
-  // a bot "thinks" a little; a colour pick or challenge answer comes a bit slower
-  const delay = (state.phase ? 1500 : 1100) + Math.random() * 900;
+  // a bot "thinks" a little; picking cards to pass comes a bit slower
+  const delay = (state.phase ? 1300 : 1100) + Math.random() * 900;
   botTickTimer = setTimeout(() => doBotTick(), delay);
 }
 
@@ -2828,49 +2990,54 @@ async function doBotTick() {
   if (!state || state.status !== 'playing' || state.hostId !== localUid || !currentRoomId) return;
   botTickRunning = true;
   try {
-    // Guided first game: the Profe follows the lesson script (tutorial.js)
+    // Guided first game: the bots follow the lesson script (tutorial.js)
     if (LOCAL_GAME) { await tutorialBotTick(state); return; }
-    const botId = whoActs(state);
-    if (!isBot(botId)) return;
+    const botId = botsWaitedOn(state)[0];
+    if (!botId) return;
     const bot = state.players.find(p => p.id === botId);
     const lvl = botLevel(state);
-    const move = Engine.botMove(state, botId, bot?.persona || 'balanced', {
-      random: lvl.random, challenge: lvl.challenge, fair: bot?.persona !== 'bluffer'
-    });
+    const move = Engine.botMove(state, botId, botStyle(bot), { random: lvl.random });
     if (!move) return;
     const err = await sendMove(move, botId);
     // a refused move (the table changed meanwhile) is simply tried again next update
     if (err && err !== 'noChange') console.info('[bot]', move.t, err);
   } finally {
     botTickRunning = false;
-    // the move may not have changed whose turn it is (e.g. a flex Skip All, or a Reverse with 2): go again
-    if (roomState && isBot(whoActs(roomState))) scheduleBotTick(roomState);
+    // the move may not have changed who the game waits for (another bot still has to pass,
+    // a Reverse with 2 players left…): go again
+    if (roomState && botsWaitedOn(roomState).length) scheduleBotTick(roomState);
   }
 }
 
-// ¡ÚLTIMA!: bots shout for themselves, and may catch a person who forgot
+// ¡UNO!: bots shout for themselves and for a partner who forgot, and may catch a player of
+// another team who hasn't shouted
 function scheduleBotLastCard(state) {
   if (LOCAL_GAME) return;   // in the guided game nobody catches you
-  const u = state.uno;
-  const key = u ? `${u.pid}|${u.at}` : null;
-  if (key === botUnoKey) return;
-  clearTimeout(botUnoTimer);
-  botUnoKey = key;
-  if (!u) return;
+  const list = state.uno || [];
+  const keys = new Set(list.map(u => `${u.pid}|${u.at}`));
+  // forget timers for entries that are gone
+  for (const k of Object.keys(botUnoTimers)) if (!keys.has(k)) { clearTimeout(botUnoTimers[k]); delete botUnoTimers[k]; }
   const lvl = botLevel(state);
-  if (isBot(u.pid)) {
-    botUnoTimer = setTimeout(() => {
-      if (roomState?.uno?.pid === u.pid && roomState.uno.at === u.at) sendMove({ t: 'shout' }, u.pid);
-    }, lvl.shoutMs * (0.7 + Math.random() * 0.6));
-    return;
+  for (const u of list) {
+    const key = `${u.pid}|${u.at}`;
+    if (botUnoTimers[key]) continue;
+    const still = () => roomState?.uno?.some(x => x.pid === u.pid && x.at === u.at);
+    const mate = Engine.partnerOf(state, u.pid);
+    if (isBot(u.pid)) {
+      botUnoTimers[key] = setTimeout(() => { if (still()) sendMove({ t: 'shout', pid: u.pid }, u.pid); }, lvl.shoutMs * (0.7 + Math.random() * 0.6));
+      continue;
+    }
+    // a person: their bot partner helps out a little later; a bot of another team may catch them
+    if (isBot(mate)) {
+      botUnoTimers[key] = setTimeout(() => { if (still()) sendMove({ t: 'shout', pid: u.pid }, mate); }, lvl.shoutMs * 1.6 + 1500);
+      continue;
+    }
+    const team = Engine.teamOf(state, u.pid);
+    const catchers = state.players.filter(p => isBot(p.id) && !p.disconnected && p.team !== team);
+    if (!catchers.length || Math.random() > lvl.catch) { botUnoTimers[key] = -1; continue; }
+    const by = catchers[Math.floor(Math.random() * catchers.length)];
+    botUnoTimers[key] = setTimeout(() => { if (still()) sendMove({ t: 'catch', pid: u.pid }, by.id); }, lvl.catchMs * (0.8 + Math.random() * 0.5));
   }
-  // a person: a bot may catch them if they haven't shouted in time
-  const catchers = state.players.filter(p => isBot(p.id) && !p.disconnected);
-  if (!catchers.length || Math.random() > lvl.catch) return;
-  const by = catchers[Math.floor(Math.random() * catchers.length)];
-  botUnoTimer = setTimeout(() => {
-    if (roomState?.uno?.pid === u.pid && roomState.uno.at === u.at) sendMove({ t: 'catch' }, by.id);
-  }, lvl.catchMs * (0.8 + Math.random() * 0.5));
 }
 
 // ============================================================

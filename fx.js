@@ -1,11 +1,11 @@
 // ============================================================
-// FX — sounds, vibration and on-screen effects (¡CAMALEÓN!)
+// FX — sounds, vibration and on-screen effects (UNO TEAMS)
 //
 //   cards fly: every play (from the player's seat — mine from the card's real spot),
 //              draws and penalties
 //   spotlight: other players' plays stop in the middle with a caption
-//   big moments: 🦎 flex sides, Skip All, everyone drawing, 🎯 targeted draws, ⚡ Power
-//              Cards flipping (one, everyone, all back to green), challenge stamps, ¡ÚLTIMA!
+//   big moments: 🤝 Team Play (the turn crosses the table), ✌️ Team Draw Four, a player
+//              going out, cards passing between partners, ¡UNO!
 //   short synth sound effects (separate switch from the music) + phone vibration
 //   calm mode: no flying or particles, only fades (follows "reduce motion")
 //
@@ -17,7 +17,7 @@
 const FX = (() => {
 
   // ---------- Preferences (saved per device) ----------
-  const PREF_KEY = 'camaleonFxPrefs';
+  const PREF_KEY = 'unoteamsFxPrefs';
   const reduceMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const prefs = Object.assign(
     { sfx: true, vol: 0.7, vibrate: true, calm: reduceMotion, colorblind: false },
@@ -318,33 +318,27 @@ const FX = (() => {
     if (roomState?.status === 'playing' && typeof renderOpponents === 'function') renderOpponents(roomState);
   }
 
-  // ---------- ⚡ Power Cards flipping ----------
-  // e.pids = whose cards switched over, e.now = their new state (true = green)
-  async function powerFlip(e, state, rush) {
-    const greens = e.pids.filter((_, i) => e.now[i]);
-    if (greens.length) play('charge'); else play('drain');
-    e.pids.forEach((id, i) => {
-      popIcon(seatRect(id), '⚡', e.pids.length > 1 ? 1.9 : 2.2, e.now[i] ? 'fx-charge' : 'fx-drain');
-      if (e.now[i]) ring(seatRect(id), '#4ade80', 1.6, 4);
-    });
-    if (e.why === 'wildFlip') {
-      burst(pileRect(), BOLT, 18, 90, 'spark');
-      await banner(t('fx.allFlip'), t('fx.allFlipSub', { name: nameOf(state, e.by) }), 'cham', 950);
-      return;
-    }
-    if (e.why === 'flipCard' && e.pids[0] === localUid && !rush) {
-      buzz(40);
-      await captionFor(e.now[0] ? t('fx.greenAgain') : t('fx.redNow'), esc(t('fx.flipCardSub')), 900);
-    }
+  // ---------- Cards passing between partners ----------
+  // n face-down cards fly from one seat to another (a pass, a swap, half a hand)
+  async function passCards(fromId, toId, n) {
+    const a = seatRect(fromId), b = seatRect(toId);
+    if (!a || !b || !n) return;
+    if (!motion()) { play('draw'); return; }
+    const k = Math.min(n, 5);
+    await Promise.all(Array.from({ length: k }, (_, i) => sleep(i * 120).then(() => { play('draw'); return flyCard(backHTML(), a, b); })));
   }
-  // every Power Card was red → all back to green
-  async function powerReset(state) {
-    play('charge');
-    for (const p of state.players) {
-      popIcon(seatRect(p.id), '⚡', 2, 'fx-charge');
-      ring(seatRect(p.id), '#4ade80', 1.6, 4);
-    }
-    await banner(t('fx.allGreen'), t('fx.allGreenSub'), 'cham', 950);
+  // A coloured line of light from one seat to another (Wild Team Play hands over the turn)
+  function beam(fromId, toId, color) {
+    const a = seatRect(fromId), b = seatRect(toId);
+    if (!a || !b || !motion()) return;
+    const p = mid(a), q = mid(b);
+    const el = document.createElement('div');
+    el.className = 'fx-beam';
+    const len = Math.hypot(q.x - p.x, q.y - p.y);
+    el.style.cssText = `left:${p.x}px;top:${p.y}px;width:${len}px;--beam:${color};transform:rotate(${Math.atan2(q.y - p.y, q.x - p.x)}rad)`;
+    layer().appendChild(el);
+    el.animate([{ clipPath: 'inset(0 100% 0 0)', opacity: 1 }, { clipPath: 'inset(0 0 0 0)', opacity: 1, offset: .5 }, { clipPath: 'inset(0 0 0 100%)', opacity: 0 }],
+      { duration: 900, easing: 'ease-in-out' }).onfinish = () => el.remove();
   }
 
   // ---------- Reading what happened (from the engine's events) ----------
@@ -357,6 +351,7 @@ const FX = (() => {
   }
 
   const nameOf = (state, pid) => state.players.find(p => p.id === pid)?.name || '?';
+  const teamColor = (state, pid) => (typeof TEAM_HEX !== 'undefined' && TEAM_HEX[state.players.find(p => p.id === pid)?.team]) || '#ffd54a';
 
   async function run(e, state, prev) {
     const rush = pending > 1;
@@ -368,21 +363,13 @@ const FX = (() => {
         const from = mine ? (handRects[card.id] || seatRect(localUid)) : seatRect(e.pid);
         play('play');
         const title = t('fx.played', { name: nameOf(state, e.pid) });
-        // a wild says the colour named; a flex side says so (and the colour that carries on)
-        const line = cardChip(card) + (e.flex ? ` <b class="fx-flexword">🦎 ${esc(t('flex.short'))}</b>` : '') +
-          (card.c === WILD_COLOR || e.flex ? ` → ${colorChip(e.color)}` : '');
+        // a wild says the colour named
+        const line = cardChip(card) + (card.c === WILD_COLOR ? ` → ${colorChip(e.color)}` : '');
         if (!motion()) { if (!mine && !rush) await staticSpot(html, title, line, 700); break; }
-        await flyCard(cardHTML(card, { flexUp: e.flex }), from, pileRect(), mine || rush ? null : { title, line, hold: 650 });
+        await flyCard(html, from, pileRect(), mine || rush ? null : { title, line, hold: 650 });
         ring(pileRect(), CARD_HEX[e.color] || '#fff', 1.7);
         // new look: the pile gives a small bounce as the card lands
         document.getElementById('top-card')?.animate([{ transform: 'scale(1.1) rotate(-3deg)' }, { transform: 'scale(1) rotate(0)' }], { duration: 220, easing: 'ease-out' });
-        if (e.flex) {
-          // 🦎 flex side: the card shimmers and settles on the colour that carries on
-          play('cham');
-          const top = document.querySelector('#top-card .card');
-          top?.classList.remove('cham-settle'); void top?.offsetWidth; top?.classList.add('cham-settle');
-          burst(pileRect(), [CARD_HEX[card.c2] || '#c6f432', CARD_HEX[e.color] || '#fff', '#ffffff'], 14, 75, 'spark');
-        }
         if (card.c === WILD_COLOR) {
           play('wild');
           ring(pileRect(), CARD_HEX[e.color] || '#fff', 2.4, 5);
@@ -390,34 +377,59 @@ const FX = (() => {
         }
         break;
       }
-      case 'powerFlip':
-        await powerFlip(e, state, rush);
-        break;
-      case 'powerReset':
-        await powerReset(state);
-        break;
-      case 'skipAll':
-        play('skipAll');
-        setMood(e.pid, 'smug', 3500);
-        for (const p of state.players) if (p.id !== e.pid && !p.disconnected) {
-          popIcon(seatRect(p.id), '⊘', 2.2, 'fx-skip');
-          setMood(p.id, 'annoyed', 3000);
-        }
-        if (!rush) await captionFor(t('fx.skipAll'), esc(t('fx.skipAllSub', { name: nameOf(state, e.pid) })), 900);
-        break;
-      case 'flexEffect':
-        // everyone else draws (the draw events after this one fly the cards)
-        play('rain');
-        setMood(e.pid, 'smug', 3500);
-        if (!rush) await captionFor(t('fx.flexAll'), esc(t(e.v === 'draw2' ? 'fx.flexAll1' : 'fx.flexAll2', { name: nameOf(state, e.pid) })), 800);
-        break;
-      case 'target':
-        // a target marker jumps onto the chosen player
+      case 'teamPlay': {
+        // 🤝 the turn jumps across the table to the partner
         play('gift');
-        popIcon(seatRect(e.to), '🎯', 2.4);
-        setMood(e.to, 'worried', 3500); setMood(e.pid, 'smug', 3500);
-        if (e.to === localUid) buzz([60, 40, 60]);
-        if (!rush) await captionFor(t('fx.target'), esc(t('fx.targetSub', { name: nameOf(state, e.pid), target: nameOf(state, e.to), n: e.n })), 900);
+        beam(e.by, e.to, teamColor(state, e.by));
+        popIcon(seatRect(e.to), '🤝', 2.4);
+        ring(seatRect(e.to), teamColor(state, e.to), 1.8, 4);
+        setMood(e.by, 'smug', 3000);
+        if (e.to === localUid) buzz([40, 30, 40]);
+        if (!rush) await banner(t('fx.teamPlay'), t('fx.teamPlaySub', { name: nameOf(state, e.by), mate: nameOf(state, e.to) }), 'team', 850);
+        break;
+      }
+      case 'teamPlayOk':
+        play('truth');
+        setMood(e.by, 'happy', 3000); setMood(e.to, 'smug', 3000);
+        popIcon(seatRect(e.to), '✓', 2);
+        break;
+      case 'teamPlayFail':
+        play('lose');
+        setMood(e.by, 'oops', 3500);
+        if (!rush) await captionFor(t('fx.teamFail'), esc(t('fx.teamFailSub', { name: nameOf(state, e.by), n: e.n })), 900);
+        break;
+      case 'team4':
+        // ✌️ two players of the same team draw
+        play('rain');
+        for (const id of e.pids) { popIcon(seatRect(id), '✌️', 2.2); setMood(id, 'worried', 3500); }
+        setMood(e.by, 'smug', 3500);
+        if (e.pids.includes(localUid)) buzz([60, 40, 60]);
+        if (!rush) await banner(t('fx.team4'), t('fx.team4Sub', { a: nameOf(state, e.pids[0]), b: nameOf(state, e.pids[1] || '') }), 'danger', 850);
+        break;
+      case 'out':
+        // 🏃 someone played their last card
+        play('win');
+        setMood(e.pid, 'cocky', 5000);
+        burst(seatRect(e.pid), [teamColor(state, e.pid), '#ffffff', '#ffd54a'], 22, 90, 'spark');
+        if (state.status === 'playing' && !rush) await banner(t('fx.out', { name: nameOf(state, e.pid) }), t('fx.outSub'), 'team', 900);
+        break;
+      case 'give':
+        // half a hand (or a tag back in) crosses the table
+        await passCards(e.from, e.to, e.n);
+        if (e.why === 'tag') { play('gift'); popIcon(seatRect(e.to), '🙌', 2.2); }
+        break;
+      case 'swapDone':
+        // 🔁 each player's chosen card goes to their partner (all at once at the start)
+        play('select');
+        if (e.why === 'start') {
+          if (!rush) await captionFor(t('fx.swapStart'), '', 700);
+        } else {
+          popIcon(pileRect(), '🔁', 2.4);
+          await Promise.all((e.pids || []).map(id => passCards(id, state.players.find(p => p.team === state.players.find(x => x.id === id)?.team && p.id !== id)?.id, 1)));
+        }
+        break;
+      case 'picked':
+        if (e.pid !== localUid) popIcon(seatRect(e.pid), '✓', 1.6);
         break;
       case 'reverse':
         play('reverse');
@@ -434,7 +446,9 @@ const FX = (() => {
       case 'uno':
         play('uno');
         popIcon(seatRect(e.pid), `<span class="fx-uno-word">${esc(t('fx.uno'))}</span>`, 2);
-        // new look (look.js): big ¡ÚLTIMA! over the table with confetti
+        // shouted by the partner: a little 😇 on the one who helped
+        if (e.by && e.by !== e.pid) popIcon(seatRect(e.by), '😇', 1.8);
+        // new look (look.js): big ¡UNO! over the table with confetti
         if (typeof lookUnoBurst === 'function') lookUnoBurst(pileRect());
         break;
       case 'caught':
@@ -444,33 +458,6 @@ const FX = (() => {
         shake(seatEl(e.pid));
         if (e.pid === localUid) buzz([80, 40, 80]);
         break;
-      case 'challengeOpen':
-        play('suspense');
-        setMood(e.target, 'worried', 4000);
-        if (!rush) await captionFor(t('card.wild4'), esc(t('fx.chSub', { name: nameOf(state, e.target) })), 1000);
-        break;
-      case 'challengeResult': {
-        // Everyone sees the hand the card was played from; cards of the old colour glow
-        // (wilds glow too: they count as a match)
-        const hand = (e.hand || []).map(c => `<span class="${c.c === WILD_COLOR || c.c === e.prevColor ? 'rv-hit' : 'rv-dim'}">${miniHTML(c)}</span>`).join('');
-        const reveal = `<div class="fx-reveal"><small>${esc(t('fx.handWas', { name: nameOf(state, e.by) }))}</small><div>${hand || '—'}</div></div>`;
-        if (e.ok) {
-          play('buzzer');
-          setMood(e.by, 'caught', 5000); setMood(e.target, 'smug', 5000);
-          if (e.by === localUid) buzz([120, 60, 220]);
-          shake(seatEl(e.by));
-          burst(pileRect(), ['#ff3b3b', '#ffffff', '#7a0000'], 18, 90, 'shard');
-          await stamp(t('fx.chWon'), esc(t('fx.chWonSub', { name: nameOf(state, e.by) })), 'liar', reveal);
-        } else {
-          play('truth');
-          setMood(e.by, 'smug', 5000); setMood(e.target, 'oops', 5000);
-          if (e.target === localUid) buzz(100);
-          shake(seatEl(e.target));
-          burst(pileRect(), ['#4ade80', '#ffffff', '#ffd54a'], 16, 80, 'spark');
-          await stamp(t('fx.chFair'), esc(t('fx.chFairSub', { name: nameOf(state, e.target) })), 'truth', reveal);
-        }
-        break;
-      }
       case 'draw': {
         if (!e.n) break;
         const to = seatRect(e.pid), from = deckRect();
@@ -500,26 +487,15 @@ const FX = (() => {
 // Effect captions
 addStrings({
   'fx.played':   ['{name} juega', '{name} plays'],
-  'fx.skipAll':  ['⊘⊘ ¡Salta a todos!', '⊘⊘ Skip all!'],
-  'fx.skipAllSub': ['{name} vuelve a jugar', '{name} plays again'],
-  'fx.flexAll':  ['🦎 ¡Lado flex!', '🦎 Flex side!'],
-  'fx.flexAll1': ['{name}: todos los demás roban 1', '{name}: everyone else draws 1'],
-  'fx.flexAll2': ['{name}: todos los demás roban 2', '{name}: everyone else draws 2'],
-  'fx.target':   ['🎯 ¡Diana!', '🎯 Target!'],
-  'fx.targetSub':['{name} hace robar {n} a {target}', '{name} makes {target} draw {n}'],
-  'fx.allFlip':  ['⚡ ¡VOLTEA TODOS!', '⚡ ALL FLIP!'],
-  'fx.allFlipSub': ['{name} voltea todas las Cartas de Poder', "{name} flips everyone's Power Card"],
-  'fx.allGreen': ['⚡ ¡TODOS EN VERDE!', '⚡ ALL GREEN!'],
-  'fx.allGreenSub': ['Todas estaban en rojo: vuelven a verde', 'Everyone was red: all back to green'],
-  'fx.greenAgain': ['⚡ ¡Poder en verde!', '⚡ Power green!'],
-  'fx.redNow':   ['⚡ Poder en rojo', '⚡ Power red'],
-  'fx.flipCardSub': ['Tu carta 🔄 volteó tu Carta de Poder', 'Your 🔄 card flipped your Power Card'],
+  'fx.teamPlay': ['🤝 ¡JUEGO EN EQUIPO!', '🤝 TEAM PLAY!'],
+  'fx.teamPlaySub': ['{name} pasa el turno a {mate}', '{name} hands the turn to {mate}'],
+  'fx.teamFail': ['🤝 No pudo jugar', "🤝 Couldn't play"],
+  'fx.teamFailSub': ['{name} roba {n}', '{name} draws {n}'],
+  'fx.team4':    ['✌️ ¡EQUIPO ROBA CUATRO!', '✌️ TEAM DRAW FOUR!'],
+  'fx.team4Sub': ['{a} y {b} roban 2 cada uno', '{a} and {b} draw 2 each'],
+  'fx.out':      ['🏃 ¡{name} se queda sin cartas!', '🏃 {name} is out of cards!'],
+  'fx.outSub':   ['Su compañero sigue en juego', 'Their partner plays on'],
+  'fx.swapStart':['🔁 Cartas pasadas', '🔁 Cards passed'],
   'fx.reverse':  ['¡Cambio de sentido!', 'Direction reversed!'],
-  'fx.uno':      ['¡ÚLTIMA!', 'LAST CARD!'],
-  'fx.chSub':    ['{name}: ¿aceptar o desafiar?', '{name}: accept or challenge?'],
-  'fx.chWon':    ['¡PILLADO!', 'CAUGHT!'],
-  'fx.chWonSub': ['{name} tenía el color: roba él', '{name} had the colour: they draw'],
-  'fx.chFair':   ['¡ERA LIMPIO!', 'IT WAS FAIR!'],
-  'fx.chFairSub':['{name} roba de más y pierde el turno', '{name} draws extra and loses the turn'],
-  'fx.handWas':  ['Mano de {name} al jugarlo:', "{name}'s hand when they played it:"]
+  'fx.uno':      ['¡UNO!', 'UNO!']
 });
