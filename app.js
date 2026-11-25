@@ -114,6 +114,10 @@ const playerName = (state, id) => state?.players?.find(p => p.id === id)?.name |
 firebase.initializeApp(FIREBASE_CONFIG);
 const auth = firebase.auth();
 const db   = firebase.firestore();
+// set once this browser was seen getting stuck (see expectEcho): updates by long polling
+let FS_LONG_POLL = false;
+try { FS_LONG_POLL = localStorage.getItem('fsLongPoll') === '1'; } catch (_) {}
+if (FS_LONG_POLL) db.settings({ experimentalForceLongPolling: true, merge: true });
 const rtdb = firebase.database();
 
 let localUid  = null;
@@ -382,7 +386,9 @@ async function mutateRoom(fn) {
       const patch = fn(snap.data());
       if (!patch || typeof patch === 'string') { result = patch || 'noChange'; return; }
       tx.update(ref, { ...patch, lastActivity: firebase.firestore.FieldValue.serverTimestamp() });
+      result = null;
     });
+    if (result === null) expectEcho();
   } catch (e) {
     console.warn('[save]', e);
     return 'network';
@@ -399,9 +405,12 @@ function gamePatch(st) {
 
 // Play a move through the rules engine. actor = who is moving (me, or a bot the
 // host runs). Returns null when saved, or the engine's reason it wasn't allowed.
-async function sendMove(move, actor = localUid) {
+// onlyAtSeq: only play it if the table is still at that move number (bot moves, which more
+// than one device may try to make — this way they only ever count once).
+async function sendMove(move, actor = localUid, onlyAtSeq = null) {
   let why = null;
   const res = await mutateRoom(cur => {
+    if (onlyAtSeq != null && (cur.seq || 0) !== onlyAtSeq) { why = 'stale'; return null; }
     const r = Engine.apply(cur, move, actor);
     if (r.error) { why = r.error; return null; }
     return gamePatch(r.state);
@@ -736,11 +745,7 @@ function subscribeToRoom(roomId) {
   if (roomUnsub) roomUnsub();
   prevNotifState = null;
   fxPrevState = null;
-  roomUnsub = db.collection('rooms').doc(roomId).onSnapshot(snap => {
-    if (!snap.exists) return;
-    roomState = snap.data();
-    onRoomUpdate(roomState);
-  });
+  listenToRoom(roomId);
   setupPresence(roomId);
   setupVoiceActivityListener(roomId);
 }
@@ -754,6 +759,7 @@ function isCaretaker(state) {
 }
 
 function onRoomUpdate(state) {
+  noteSeq(state);
   checkNotifications(state);
   if (state.status === 'lobby') {
     if (state.players.some(p => p.disconnected)) removeDisconnectedFromLobby(state);
@@ -1230,7 +1236,13 @@ async function doMove(move) {
   if (moveBusy) return;
   moveBusy = true;
   try {
-    const err = await sendMove(move);
+    // a save that hangs (bad connection) must not lock my hand forever: after 10 s the
+    // hand works again (the engine refuses a card that was already played)
+    const err = await Promise.race([
+      sendMove(move),
+      new Promise(r => setTimeout(() => r('slow'), 10000))
+    ]);
+    if (err === 'slow') resyncRoom();
     if (err && err !== 'noChange') console.info('[move]', move.t, err);
     return err;
   } finally {
@@ -2998,7 +3010,7 @@ async function doBotTick() {
     const lvl = botLevel(state);
     const move = Engine.botMove(state, botId, botStyle(bot), { random: lvl.random });
     if (!move) return;
-    const err = await sendMove(move, botId);
+    const err = await sendMove(move, botId, state.seq || 0);
     // a refused move (the table changed meanwhile) is simply tried again next update
     if (err && err !== 'noChange') console.info('[bot]', move.t, err);
   } finally {
@@ -3039,6 +3051,100 @@ function scheduleBotLastCard(state) {
     botUnoTimers[key] = setTimeout(() => { if (still()) sendMove({ t: 'catch', pid: u.pid }, by.id); }, lvl.catchMs * (0.8 + Math.random() * 0.5));
   }
 }
+
+// ============================================================
+// WATCHDOG — keeps the game from getting stuck
+//
+// The bots are moved by the host's device. When the host's phone sleeps or goes to the
+// background, its timers stop and the table waits for nobody. And a phone coming back
+// from the background sometimes keeps a dead connection, so new moves never arrive.
+// Every few seconds each device checks: if the table hasn't moved for a while, it reads
+// the room again, and if it is still waiting on a bot, another person's device makes the
+// bot's move (sendMove's onlyAtSeq makes sure it counts once, whoever is first).
+// ============================================================
+
+let lastSeqSeen = null, lastSeqAt = Date.now(), lastResyncAt = 0;
+function noteSeq(state) {
+  if (state?.seq !== lastSeqSeen) { lastSeqSeen = state?.seq; lastSeqAt = Date.now(); }
+}
+
+// Listen to the room afresh (a stalled connection is replaced by a new one)
+function resyncRoom() {
+  if (LOCAL_GAME || !currentRoomId || document.visibilityState === 'hidden') return;
+  if (Date.now() - lastResyncAt < 5000) return;
+  lastResyncAt = Date.now();
+  // drop and reopen the connection (a new listener alone could reuse the dead one)
+  const roomId = currentRoomId;
+  db.disableNetwork().catch(() => {})
+    .then(() => db.enableNetwork()).catch(() => {})
+    .then(() => { if (currentRoomId === roomId) listenToRoom(roomId); });
+}
+
+// The live link to the room. snapCount goes up with every update that arrives, so a save
+// can tell whether its own change ever came back.
+let snapCount = 0;
+function listenToRoom(roomId) {
+  if (roomUnsub) roomUnsub();
+  roomUnsub = db.collection('rooms').doc(roomId).onSnapshot(snap => {
+    snapCount++;
+    if (!snap.exists) return;
+    roomState = snap.data();
+    onRoomUpdate(roomState);
+  }, err => {
+    console.warn('[room]', err);
+    lastResyncAt = 0;
+    setTimeout(resyncRoom, 2000);
+  });
+}
+// After a save: if the change doesn't show up within a few seconds, the link is stale
+// Some laptops (antivirus web filters, proxies) hold back the live stream, so updates only
+// arrive on a refresh. Then: switch this browser to long polling (a slower but sturdier way
+// to get updates, used from the next load on), reconnect, and if even that brings nothing,
+// reload the page — it rejoins the room by itself.
+function expectEcho() {
+  const n = snapCount;
+  setTimeout(() => {
+    if (snapCount !== n || LOCAL_GAME) return;
+    console.warn('[room] my change did not come back — reconnecting');
+    try { localStorage.setItem('fsLongPoll', '1'); } catch (_) {}
+    lastResyncAt = 0;
+    resyncRoom();
+    setTimeout(() => {
+      if (snapCount === n && document.visibilityState === 'visible' && !FS_LONG_POLL) location.reload();
+    }, 4000);
+  }, 2500);
+}
+
+function watchdog() {
+  const state = roomState;
+  if (!state || state.status !== 'playing' || document.visibilityState === 'hidden') return;
+  noteSeq(state);
+  const quiet = Date.now() - lastSeqAt;
+  const bots = botsWaitedOn(state);
+  if (state.hostId === localUid) {
+    // my own bot timer got lost (sleep, a refused move…): start it again
+    if (bots.length && quiet > 4000 && !botTickRunning) { clearTimeout(botTickTimer); doBotTick(); }
+  } else if (bots.length && quiet > 9000 && !LOCAL_GAME) {
+    // the host's device isn't moving its bots: the first person whose device notices does it
+    const bot = state.players.find(p => p.id === bots[0]);
+    const move = Engine.botMove(state, bots[0], botStyle(bot), { random: botLevel(state).random });
+    if (move) sendMove(move, bots[0], state.seq || 0);
+  }
+  // nothing happened for a long time: maybe my connection is the stuck one
+  if (quiet > 15000 && Date.now() - lastResyncAt > 20000) resyncRoom();
+}
+setInterval(watchdog, 3000);
+
+// Coming back to the page (phone unlocked, tab switched back, network back): read again
+function onBackToPage() {
+  if (document.visibilityState !== 'visible' || !roomState) return;
+  lastResyncAt = 0;
+  resyncRoom();
+  if (roomState.status === 'playing') scheduleBotTick(roomState);
+}
+document.addEventListener('visibilitychange', onBackToPage);
+window.addEventListener('online', onBackToPage);
+window.addEventListener('pageshow', e => { if (e.persisted) onBackToPage(); });
 
 // ============================================================
 // START
